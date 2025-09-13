@@ -1,0 +1,10 @@
+node_modules          
+.env                 
+*.log                
+.git                 
+prisma/migrations/   
+dist/                
+*.tsbuildinfo        
+.vscode/             
+Dockerfile           
+*.sqlite             
