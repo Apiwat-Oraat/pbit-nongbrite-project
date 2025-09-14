@@ -1,0 +1,29 @@
+[33mcommit db122d36670590c53224666224c6f2d7560fee22[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m, [m[1;31morigin/main[m[33m, [m[1;31morigin/HEAD[m[33m)[m
+Author: APHIWAT-TECH <changsaoggo123@gmail.com>
+Date:   Sun Sep 14 03:59:48 2025 +0700
+
+    🧹 Remove generated Prisma client from Git tracking
+
+[33mcommit 0fc863427bd13cbb69d482390772d3698a6f2c3e[m
+Author: APHIWAT-TECH <changsaoggo123@gmail.com>
+Date:   Sun Sep 14 03:56:36 2025 +0700
+
+    🔧 Update backend logic and Prisma schema
+
+[33mcommit 3e3f23b8b4043b23f32a420a3cdbb51703128156[m
+Author: APHIWAT-TECH <changsaoggo123@gmail.com>
+Date:   Sun Sep 14 03:52:33 2025 +0700
+
+    a
+
+[33mcommit b59be02cc02f46cd7e0fc924c4285cbc21676aba[m
+Author: APHIWAT-TECH <changsaoggo123@gmail.com>
+Date:   Sun Sep 14 03:49:16 2025 +0700
+
+    🔧 Update backend logic and Prisma schema
+
+[33mcommit b652c6726a2adb763e68cac4b3ed10df6c5823ed[m
+Author: APHIWAT-TECH <changsaoggo123@gmail.com>
+Date:   Sun Sep 14 02:25:02 2025 +0700
+
+    Initial commit

@@ -3,18 +3,22 @@
 ## ⚡ Quick Start
 
 ### 1. ความต้องการของระบบ
+
 ติดตั้งให้ครบก่อนเริ่มใช้งาน:
+
 - [Docker](https://www.docker.com/products/docker-desktop)
 - [Docker Compose](https://docs.docker.com/compose/install/) (มักจะมาพร้อมกับ Docker Desktop)
 - [Git](https://git-scm.com/downloads)
 
 ### 2. Clone โปรเจค
+
 ```bash
 git clone <repository-url>
 cd project-name
 ```
 
 ### 3. รันโปรเจค
+
 ```bash
 # Build และ start ทุก services
 docker-compose up --build
@@ -24,6 +28,7 @@ docker-compose up -d --build
 ```
 
 ### 4. เข้าใช้งาน
+
 เมื่อทุก services เริ่มทำงานแล้ว:
 
 - **🌐 Frontend**: http://localhost:3000
@@ -35,6 +40,7 @@ docker-compose up -d --build
 ## 📋 คำสั่งที่มีประโยชน์
 
 ### ดู logs
+
 ```bash
 # ดู logs ทุก services
 docker-compose logs -f
@@ -46,6 +52,7 @@ docker-compose logs -f db
 ```
 
 ### หยุดและเริ่มใหม่
+
 ```bash
 # หยุด services
 docker-compose down
@@ -58,6 +65,7 @@ docker-compose restart backend
 ```
 
 ### ลบข้อมูลและเริ่มใหม่
+
 ```bash
 # ลบทุกอย่าง (รวม database)
 docker-compose down -v
@@ -73,6 +81,7 @@ docker-compose up --build
 ### ปัญหาที่พบบ่อย
 
 **Port ชน:**
+
 ```bash
 Error: Port 3000 is already in use
 ```
@@ -91,6 +100,7 @@ docker system prune -a
 ```
 
 ### ตรวจสอบสถานะ
+
 ```bash
 # ดู services ที่กำลังทำงาน
 docker-compose ps
@@ -104,10 +114,11 @@ docker-compose exec db pg_isready -U admin -d mydb
 ## 🛠️ Development
 
 ### การแก้ไขโค้ด
+
 - ไฟล์ที่แก้ไขจะ sync กับ container อัตโนมัติ
 - ไม่ต้อง restart services เมื่อแก้ไขโค้ด
 
-### การติดตั้ง package ใหม่
+ การติดตั้ง package ใหม่
 ```bash
 # เข้าไปใน container
 docker-compose exec backend bash
@@ -119,6 +130,7 @@ docker-compose up --build backend
 ```
 
 ### การรัน database migration
+
 ```bash
 docker-compose exec backend npx prisma migrate dev
 docker-compose exec backend npx prisma generate
