@@ -15,4 +15,5 @@ COPY . .
 
 EXPOSE 4000
 
-CMD ["npm", "start"]
+# รัน Prisma db push ตอน container เริ่มต้น แล้วค่อย start server
+CMD ["sh", "-c", "npx prisma db push && npm start"]
