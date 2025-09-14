@@ -9,7 +9,19 @@ const productController = {
     } catch (error) {
       res.status(500).json({ error: 'Failed to fetch products' });
     }
-}
+  },
+
+  createProduct: async (req, res) => {
+    const { name, description } = req.body;
+    const price = parseFloat(req.body.price);
+
+    try {
+      const newProduct = await productService.createProduct({ name, description, price });
+      res.status(200).json(newProduct, { message: 'Product created successfully' });
+    } catch (error) {
+      res.status(500).json({ error: 'Failed to create product' });
+    }
+  },
 };
 
 export default productController;
