@@ -13,17 +13,286 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// model User {
-//   id        Int      @id @default(autoincrement())
-//   email     String   @unique
-//   password  String
-//   createdAt DateTime @default(now())
-// }
+model User {
+  id             Int       @id @default(autoincrement())
+  email          String    @unique
+  password       String
+  name           String?
+  age            Int?
+  gender         Gender?
+  role           Role      @default(USER)
+  isVerified     Boolean   @default(false)
+  refreshToken   String?
+  
+  // เพิ่มข้อมูลสำหรับ Ranking
+  displayName    String?   // ชื่อที่แสดงใน Ranking
+  avatar         String?   // รูปโปรไฟล์
+  isPublic       Boolean   @default(true) // แสดงใน Ranking หรือไม่
 
-model Product {
+  // reset password
+  resetPin       String?   // เก็บ hash ของ PIN
+  resetExpiresAt DateTime? // เวลาหมดอายุ PIN
+
+  // ความสัมพันธ์
+  profile        Profile?  // เพิ่ม relation ไป Profile
+  score          Score?    // เปลี่ยนเป็น one-to-one
+  streaks        Streak[]
+  stars          Star[]
+  lives          Life[]
+  achievements   AchievementUnlock[]
+  lastStage      LastStage?
+  rankingCache   RankingCache?
+  scoreHistory   ScoreHistory[]
+  unlockedIcons  UserIcon[] // เพิ่ม relation สำหรับ icon ที่ปลดล็อก
+  levelCompletions LevelCompletion[] // เพิ่มการเชื่อมต่อกับผลการเล่น
+
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+}
+
+model Score {
+  id        Int      @id @default(autoincrement())
+  user      User     @relation(fields: [userId], references: [id])
+  userId    Int      @unique // แต่ละ user มี score record เดียว
+  points    Int      @default(0)   // คะแนนรวม
+  rank      Int?     // อันดับปัจจุบัน (อาจจะ cache ไว้)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  // เพิ่ม index สำหรับ ranking
+  @@index([points(sort: Desc), userId])
+}
+
+model Streak {
+  id        Int      @id @default(autoincrement())
+  user      User     @relation(fields: [userId], references: [id])
+  userId    Int
+  current   Int      @default(0)   // วันต่อเนื่องปัจจุบัน
+  longest   Int      @default(0)   // วันต่อเนื่องสูงสุด
+  lastActiveDate DateTime? // วันที่เล่นล่าสุด
+  updatedAt DateTime @updatedAt
+}
+
+model Life {
+  id         Int      @id @default(autoincrement())
+  user       User     @relation(fields: [userId], references: [id])
+  userId     Int      @unique // แต่ละ user มี life record เดียว
+  current    Int      @default(5) // หัวใจปัจจุบัน
+  max        Int      @default(5) // สูงสุดที่มีได้
+  regenRate  Int      @default(14400) // วินาทีต่อ 1 หัวใจ (4 ชั่วโมง = 14400 วินาที)
+  lastRegenAt DateTime @default(now()) // เวลาล่าสุดที่ฟื้นฟู
+  updatedAt  DateTime @updatedAt
+}
+
+model LastStage {
   id          Int      @id @default(autoincrement())
-  name        String
-  description String?
-  price       Float
+  user        User     @relation(fields: [userId], references: [id])
+  userId      Int      @unique // แต่ละ user มี lastStage เดียว
+  chapter     Chapter  @relation(fields: [chapterId], references: [id])
+  chapterId   Int
+  level       Level    @relation(fields: [levelId], references: [id])
+  levelId     Int      // เพิ่ม reference ไป level
+  updatedAt   DateTime @updatedAt
+}
+
+model Chapter {
+  id         Int         @id @default(autoincrement())
+  title      String
+  desc       String      // คำอธิบายเกม Chapter
+  orderIndex Int         // ลำดับ Chapter
+  totalStars Int         @default(0) // จำนวนดาวทั้งหมดใน Chapter
+  
+  // Relations
+  levels     Level[]     // เพิ่ม levels ใน chapter
+  stars      Star[]
+  lastStages LastStage[]
+  
+  createdAt  DateTime    @default(now())
+}
+
+model Star {
+  id        Int     @id @default(autoincrement())
+  user      User    @relation(fields: [userId], references: [id])
+  userId    Int
+  chapter   Chapter @relation(fields: [chapterId], references: [id])
+  chapterId Int
+  stars     Int     @default(0) // ดาวที่เก็บได้ใน chapter
+  maxStars  Int     @default(0) // ดาวสูงสุดที่เป็นไปได้ใน chapter
+
+  // ป้องกันการสร้าง record ซ้ำ
+  @@unique([userId, chapterId])
+}
+
+model Achievement {
+  id          Int                 @id @default(autoincrement())
+  title       String
+  desc        String
+  condition   String              // เงื่อนไขการปลดล็อก เช่น "เล่นครบ 7 วัน"
+  icon        String?
+  orderIndex  Int                 @default(0) // ลำดับการแสดงผล
+  isActive    Boolean             @default(true) // สถานะใช้งาน
+  createdAt   DateTime            @default(now())
+
+  unlocks     AchievementUnlock[]
+}
+
+model AchievementUnlock {
+  id            Int         @id @default(autoincrement())
+  user          User        @relation(fields: [userId], references: [id])
+  userId        Int
+  achievement   Achievement @relation(fields: [achievementId], references: [id])
+  achievementId Int
+  unlockedAt    DateTime    @default(now())
+  
+  // เพิ่มสำหรับ Ranking display
+  isShowInRank  Boolean     @default(true) // แสดงใน Ranking หรือไม่
+
+  // ป้องกันการปลดล็อกซ้ำ
+  @@unique([userId, achievementId])
+  @@index([userId, unlockedAt(sort: Desc)]) // สำหรับดึง achievement ล่าสุด
+}
+
+enum Gender {
+  MALE
+  FEMALE
+  OTHER
+}
+
+enum Role {
+  USER
+  ADMIN
+}
+
+// เพิ่ม model Profile สำหรับหน้า Profile
+model Profile {
+  id          Int      @id @default(autoincrement())
+  user        User     @relation(fields: [userId], references: [id])
+  userId      Int      @unique
+  
+  // ข้อมูลโปรไฟล์
+  playerName  String?  // ชื่อผู้เล่น (สามารถแก้ไขได้)
+  icon        String?  // Icon ของผู้เล่น (สามารถแก้ไขได้)
+  
+  // สถิติรวม (cache สำหรับ performance)
+  totalScore  Int      @default(0)    // คะแนนรวม
+  currentRank Int?                    // อันดับปัจจุบัน
+  joinedDate  DateTime @default(now()) // วันที่เข้าร่วม
+  
+  // สถิติ Streak
+  currentStreak Int    @default(0)    // วันต่อเนื่องปัจจุบัน
+  longestStreak Int    @default(0)    // วันต่อเนื่องสูงสุด
+  
+  // สถิติดาว
+  totalStars    Int    @default(0)    // ดาวทั้งหมดที่เก็บได้
+  totalMaxStars Int    @default(0)    // ดาวสูงสุดที่เป็นไปได้
+  
+  // การตั้งค่า Profile (เก็บไว้เผื่ออนาคต)
+  isProfilePublic Boolean @default(true) // แสดง Profile ใน Ranking
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  @@index([totalScore(sort: Desc)])
+  @@index([currentStreak(sort: Desc)])
+}
+
+// เพิ่ม model สำหรับ Icon collection
+model Icon {
+  id          Int      @id @default(autoincrement())
+  name        String   @unique
+  imageUrl    String   // URL รูป icon
+  category    String?  // หมวดหมู่ icon เช่น "animal", "character"
+  isDefault   Boolean  @default(false) // icon เริ่มต้น
+  unlockCondition String? // เงื่อนไขการปลดล็อก
+  orderIndex  Int      @default(0)
+  isActive    Boolean  @default(true)
+  
+  // relation กับผู้ใช้ที่ปลดล็อก
+  unlockedBy  UserIcon[]
+  
   createdAt   DateTime @default(now())
 }
+
+// ตาราง junction สำหรับ icon ที่ผู้ใช้ปลดล็อกแล้ว
+model UserIcon {
+  id         Int      @id @default(autoincrement())
+  user       User     @relation(fields: [userId], references: [id])
+  userId     Int
+  icon       Icon     @relation(fields: [iconId], references: [id])
+  iconId     Int
+  unlockedAt DateTime @default(now())
+  
+  @@unique([userId, iconId])
+  @@index([userId])
+}
+model RankingCache {
+  id          Int      @id @default(autoincrement())
+  userId      Int      @unique
+  user        User     @relation(fields: [userId], references: [id])
+  rank        Int
+  points      Int
+  lastUpdated DateTime @updatedAt
+  
+  @@index([rank])
+  @@index([points(sort: Desc)])
+}
+
+// เพิ่ม model สำหรับ score history (optional)
+model ScoreHistory {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id])
+  points    Int      // คะแนนที่ได้
+  source    String   // แหล่งที่มาของคะแนน เช่น "chapter_complete", "daily_bonus"
+  metadata  Json?    // ข้อมูลเพิ่มเติม
+  createdAt DateTime @default(now())
+  
+  @@index([userId, createdAt(sort: Desc)])
+}
+
+// เก็บข้อมูลด่าน (Level) ภายใน Chapter
+model Level {
+  id          Int       @id @default(autoincrement())
+  chapter     Chapter   @relation(fields: [chapterId], references: [id])
+  chapterId   Int
+  number      Int       // ลำดับด่านใน chapter
+  title       String
+  desc        String?
+  difficulty  Int       @default(1) // ระดับความยาก (1-5 หรือกำหนดเอง)
+  maxStars    Int       @default(3) // ดาวสูงสุดที่ทำได้ในด่านนี้
+  maxScore    Int       @default(0) // คะแนนสูงสุดที่ทำได้
+  isActive    Boolean   @default(true)
+
+  // ความสัมพันธ์
+  completions LevelCompletion[]
+  lastStages  LastStage[]
+
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@unique([chapterId, number]) // ป้องกันด่านซ้ำใน chapter เดียวกัน
+  @@index([chapterId])
+}
+
+// เก็บผลการเล่นของผู้ใช้ในแต่ละด่าน
+model LevelCompletion {
+  id          Int       @id @default(autoincrement())
+  user        User      @relation(fields: [userId], references: [id])
+  userId      Int
+  level       Level     @relation(fields: [levelId], references: [id])
+  levelId     Int
+  score       Int       @default(0) // คะแนนที่ทำได้
+  stars       Int       @default(0) // ดาวที่ได้
+  completedAt DateTime  @default(now())
+  attempts    Int       @default(1) // จำนวนครั้งที่เล่นด่านนี้
+  bestScore   Int       @default(0) // คะแนนสูงสุดที่เคยทำได้
+  bestStars   Int       @default(0) // ดาวสูงสุดที่เคยได้
+
+  // ข้อมูลเพิ่มเติม เช่น เวลาเล่น, อุปกรณ์, โหมด
+  metadata    Json?
+
+  @@unique([userId, levelId]) // ผู้ใช้ 1 คนมี record เดียวต่อด่าน
+  @@index([levelId])
+  @@index([userId, completedAt(sort: Desc)])
+}
+
