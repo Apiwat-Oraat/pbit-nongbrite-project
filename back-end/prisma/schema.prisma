@@ -45,6 +45,8 @@ model User {
   scoreHistory   ScoreHistory[]
   unlockedIcons  UserIcon[] // เพิ่ม relation สำหรับ icon ที่ปลดล็อก
   levelCompletions LevelCompletion[] // เพิ่มการเชื่อมต่อกับผลการเล่น
+  resetTokens ResetToken[]  // เพิ่มตรงนี้เพื่อเป็นฝั่งตรงข้ามของ relation
+
 
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
@@ -274,6 +276,8 @@ model Level {
   @@index([chapterId])
 }
 
+
+
 // เก็บผลการเล่นของผู้ใช้ในแต่ละด่าน
 model LevelCompletion {
   id          Int       @id @default(autoincrement())
@@ -294,5 +298,20 @@ model LevelCompletion {
   @@unique([userId, levelId]) // ผู้ใช้ 1 คนมี record เดียวต่อด่าน
   @@index([levelId])
   @@index([userId, completedAt(sort: Desc)])
+
+  
 }
+
+model ResetToken {
+  id        Int      @id @default(autoincrement())
+  user      User     @relation(fields: [userId], references: [id])
+  userId    Int
+  pin       String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@unique([userId, pin])
+}
+
+
 

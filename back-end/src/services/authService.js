@@ -3,6 +3,7 @@ import jwt from "jsonwebtoken";
 import bcrypt from "bcrypt";
 import { PrismaClient } from "@prisma/client";
 import tokenService from "./tokenService.js";
+import emailService from "./emailService.js";
 
 const prisma = new PrismaClient();
 
@@ -97,6 +98,45 @@ const AuthService = {
     } catch (err) {
       throw new Error("Invalid or expired refresh token");
     }
+  },
+
+  async forgotPassword(email) {
+    const user = await prisma.user.findUnique({ where: { email } });
+    if (!user) throw new Error("User not found");
+
+    const pin = Math.floor(100000 + Math.random() * 900000).toString();
+    const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
+
+    await prisma.resetToken.create({
+      data: { userId: user.id, pin, expiresAt },
+    });
+
+    await emailService.sendResetPinEmail(email, pin);
+  },
+
+  async resetPassword(email, pin, newPassword) {
+    const user = await prisma.user.findUnique({ where: { email } });
+    if (!user) throw new Error("User not found");
+
+    const resetToken = await prisma.resetToken.findFirst({
+      where: {
+        userId: user.id,
+        pin,
+        expiresAt: { gt: new Date() }
+      },
+    });
+
+    if (!resetToken || resetToken.expiresAt < new Date()) {
+      throw new Error("Invalid or expired PIN");
+    }
+
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { password: hashedPassword }
+    });
+
+    await prisma.resetToken.delete({ where: { id: resetToken.id } });
   }
 };
 

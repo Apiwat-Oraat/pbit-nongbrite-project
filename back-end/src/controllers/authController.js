@@ -53,7 +53,31 @@ const AuthController = {
     } catch (err) {
       res.status(401).json({ message: err.message });
     }
+  },
+
+  async forgotPassword(req, res) {
+    const { email } = req.body;
+    try {
+      await AuthService.forgotPassword(email);
+      res.json({ massage: "Reset PIN sent to email"});
+    } catch (err) {
+      res.status(401).json({ massage: err.message});
+    }
+  },
+
+  async resetPassword(req, res){
+    const { email, pin, newPassword } = req.body;
+    try {
+      await AuthService.resetPassword(email, pin, newPassword);
+      res.json({ message: "Password reset successfully"});
+    } catch (err) {
+      res.status(400).json({ message: err.message});
+    }
   }
+
+
+
+
 };
 
 export default AuthController;
