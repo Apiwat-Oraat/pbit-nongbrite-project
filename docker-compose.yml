@@ -29,6 +29,9 @@ services:
       - "4000:4000"
     environment:
       DATABASE_URL: ${DATABASE_URL}
+      JWT_SECRET: ${JWT_SECRET}
+      EMAIL_USER: ${EMAIL_USER}
+      EMAIL_PASS: ${EMAIL_PASS}
       NODE_ENV: development
     depends_on:
       db:
