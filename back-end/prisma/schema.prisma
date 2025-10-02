@@ -74,6 +74,7 @@ model Chapter {
   id         Int      @id @default(autoincrement())
   title      String
   desc       String
+  imageUrl   String?
   orderIndex Int
   createdAt  DateTime @default(now())
 
