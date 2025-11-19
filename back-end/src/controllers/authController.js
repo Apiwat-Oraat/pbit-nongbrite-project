@@ -55,15 +55,26 @@ const AuthController = {
     }
   },
 
-  async forgotPassword(req, res) {
-    const { email } = req.body;
-    try {
-      await AuthService.forgotPassword(email);
-      res.json({ massage: "Reset PIN sent to email"});
-    } catch (err) {
-      res.status(401).json({ massage: err.message});
+async forgotPassword(req, res) {
+  const { email } = req.body;
+  try {
+    await AuthService.forgotPassword(email);
+    return res.json({ message: "Reset PIN sent to email" });
+  } catch (err) {
+    console.error(err);
+
+    if (err.name === "NotFoundError") {
+      return res.status(404).json({ message: "User not found" });
     }
-  },
+
+    if (err.name === "UnauthorizedError") {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    return res.status(500).json({ message: "Internal server error" });
+  }
+},
+
 
   async resetPassword(req, res){
     const { email, pin, newPassword } = req.body;
