@@ -100,19 +100,34 @@ const AuthService = {
     }
   },
 
-  async forgotPassword(email) {
-    const user = await prisma.user.findUnique({ where: { email } });
-    if (!user) throw new Error("User not found");
+async forgotPassword(email) {
+  const user = await prisma.user.findUnique({ where: { email } });
+  if (!user) {
+    const err = new Error("User not found");
+    err.name = "NotFoundError";
+    throw err;
+  }
 
-    const pin = Math.floor(100000 + Math.random() * 900000).toString();
-    const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
+  const pin = Math.floor(100000 + Math.random() * 900000).toString();
+  const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
 
+  try {
     await prisma.resetToken.create({
       data: { userId: user.id, pin, expiresAt },
     });
+  } catch (dbErr) {
+    dbErr.name = "DatabaseError";
+    throw dbErr;
+  }
 
+  try {
     await emailService.sendResetPinEmail(email, pin);
-  },
+  } catch (mailErr) {
+    mailErr.name = "EmailError";
+    throw mailErr;
+  }
+},
+
 
   async resetPassword(email, pin, newPassword) {
     const user = await prisma.user.findUnique({ where: { email } });
