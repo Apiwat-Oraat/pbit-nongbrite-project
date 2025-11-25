@@ -1,7 +1,5 @@
 
 import jwt from "jsonwebtoken";
-import bcrypt from "bcrypt";
-
 const ACCESS_TOKEN_SECRET = process.env.JWT_SECRET;
 const REFRESH_TOKEN_SECRET = process.env.JWT_SECRET;
 const REGISTER_TOKEN_SECRET = process.env.JWT_SECRET;

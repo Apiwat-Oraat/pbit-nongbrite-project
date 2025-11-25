@@ -72,8 +72,8 @@ model LastStage {
 
 model Chapter {
   id         Int      @id @default(autoincrement())
-  title      String
-  desc       String
+  title      Json
+  desc       Json
   imageUrl   String?
   orderIndex Int
   createdAt  DateTime @default(now())
@@ -86,8 +86,8 @@ model Level {
   id          Int               @id @default(autoincrement())
   chapterId   Int
   number      Int
-  title       String
-  desc        String?
+  title       Json
+  desc        Json?
   difficulty  Int               @default(1)
   maxStars    Int               @default(3)
   maxScore    Int               @default(100)
@@ -140,8 +140,8 @@ model GamePlayHistory {
 
 model Achievement {
   id         Int                 @id @default(autoincrement())
-  title      String
-  desc       String
+  title      Json
+  desc       Json
   condition  String
   icon       String?
   orderIndex Int                 @default(0)

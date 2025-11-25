@@ -2,7 +2,7 @@ import streaksService from "../services/streaksService.js";
 
 const getStreak = async (req, res) => {
   try {
-    const userId = req.user.id;
+    const userId = req.user.userId;
     const streak = await streaksService.getStreak(userId);
 
     if (!streak) {
@@ -22,7 +22,7 @@ const getStreak = async (req, res) => {
 
 const updateStreak = async (req, res) => {
   try {
-    const userId = req.user.id;
+    const userId = req.user.userId;
     const streak = await streaksService.updateStreak(userId);
     res.json(streak);
   } catch (err) {

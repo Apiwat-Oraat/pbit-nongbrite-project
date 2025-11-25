@@ -4,6 +4,7 @@ import bcrypt from "bcrypt";
 import { PrismaClient } from "@prisma/client";
 import tokenService from "./tokenService.js";
 import emailService from "./emailService.js";
+import crypto from "crypto";
 
 const prisma = new PrismaClient();
 
@@ -97,7 +98,6 @@ const AuthService = {
   async refreshTokens(refreshToken) {
     try {
       const payload = tokenService.verifyRefreshToken(refreshToken);
-
       // สร้าง accessToken ใหม่
       const accessToken = tokenService.generateAccessToken({ userId: payload.userId });
 
@@ -111,30 +111,36 @@ const AuthService = {
   },
 
   async forgotPassword(email) {
+    // 1. ค้นหา user
     const user = await prisma.user.findUnique({ where: { email } });
+
     if (!user) {
-      const err = new Error("User not found");
-      err.name = "NotFoundError";
-      throw err;
+      console.log(`[ForgotPassword] Email ${email} not found, but pretending success.`);
+      return;
     }
 
-    const pin = Math.floor(100000 + Math.random() * 900000).toString();
-    const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
+    const pin = crypto.randomInt(100000, 999999).toString();
+    const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 นาที
 
     try {
-      await prisma.resetToken.create({
-        data: { userId: user.id, pin, expiresAt },
-      });
-    } catch (dbErr) {
-      dbErr.name = "DatabaseError";
-      throw dbErr;
-    }
+      await prisma.$transaction([
+        prisma.resetToken.deleteMany({ where: { userId: user.id } }),
+        prisma.resetToken.create({
+          data: {
+            userId: user.id,
+            pin,
+            expiresAt
+          }
+        })
+      ]);
 
-    try {
       await emailService.sendResetPinEmail(email, pin);
-    } catch (mailErr) {
-      mailErr.name = "EmailError";
-      throw mailErr;
+    } catch (error) {
+      console.error("Forgot Password Error:", error);
+
+      const err = new Error("Unable to process request");
+      err.name = "ServiceError";
+      throw err;
     }
   },
 
@@ -161,8 +167,10 @@ const AuthService = {
       data: { password: hashedPassword }
     });
 
-    await prisma.resetToken.delete({ where: { id: resetToken.id } });
+    await prisma.resetToken.delete({ where: { id: resetToken.userId } });
   }
+
+
 };
 
 
