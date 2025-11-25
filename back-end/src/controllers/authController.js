@@ -35,7 +35,7 @@ const AuthController = {
     }
   },
 
-  async logout(req,res){
+  async logout(req, res) {
     try {
       const refreshToken = req.cookies.refreshToken;
       if (refreshToken) {
@@ -56,14 +56,14 @@ const AuthController = {
         message: "Logged out successfully"
       });
     } catch (error) {
-      
+
       res.clearCookie('accessToken');
       res.clearCookie('refreshToken');
-      res.status(200).json({success: true, message: "Logged out (Local only)"});
+      res.status(200).json({ success: true, message: "Logged out (Local only)" });
     }
   },
 
-  
+
   async registerStep1(req, res) {
     try {
       const { email, password, confirmPassword } = req.body;
@@ -190,18 +190,18 @@ const AuthController = {
     }
   },
 
-async forgotPassword(req, res) {
+  async forgotPassword(req, res) {
     const { email } = req.body;
-    
+
     try {
       // เรียก Service
       // (ซึ่งใน Service เราคุยกันแล้วว่าถ้าไม่เจอ User ให้ return เงียบๆ ห้าม throw error)
       await AuthService.forgotPassword(email);
 
       // ✅ ตอบ Success เสมอ ไม่ว่าจะมีอีเมลจริงหรือไม่
-      return res.status(200).json({ 
-          success: true, 
-          message: "If an account exists for this email, we have sent a reset PIN." 
+      return res.status(200).json({
+        success: true,
+        message: "If an account exists for this email, we have sent a reset PIN."
       });
 
     } catch (err) {
@@ -209,12 +209,12 @@ async forgotPassword(req, res) {
 
       // 🚨 ถ้าเป็น Error อื่นๆ (เช่น DB ล่ม, ส่งเมลไม่ได้) ให้ตอบ 500
       // แต่ "ห้าม" แยก case NotFoundError ออกมาตอบ User
-      return res.status(500).json({ 
-          success: false, 
-          message: "Unable to process request at this time." 
+      return res.status(500).json({
+        success: false,
+        message: "Unable to process request at this time."
       });
     }
-},
+  },
 
 
   async resetPassword(req, res) {
