@@ -1,172 +1,141 @@
-# การติดตั้งและรันโปรเจค
+# P'Bit Nong'Brite Learning Platform
 
-## ⚡ Quick Start
+> 🚧 **สถานะ**: โครงการกำลังอยู่ระหว่างการพัฒนา (WIP) — ฟีเจอร์บางส่วนอาจมีแก่ไขเพิ่มเติ่ม
 
-### 1. ความต้องการของระบบ
+## 🎯 Concept
 
-ติดตั้งให้ครบก่อนเริ่มใช้งาน:
+แพลตฟอร์มช่วยฝึกฝนทักษะผ่านรูปแบบเกม (game-based learning) ที่แบ่งคอนเทนต์เป็น Chapter → Level พร้อมระบบหัวใจ (Lives), สถิติการเล่น, สะสมดาว/คะแนน, ดึงดูดผู้ใช้ด้วย Streak และ Achievements รวมถึงการจัดอันดับด้วย Ranking cache ทำให้ผู้เรียนเห็นพัฒนาการของตัวเองแบบเรียลไทม์
 
-- [Docker](https://www.docker.com/products/docker-desktop)
-- [Docker Compose](https://docs.docker.com/compose/install/) (มักจะมาพร้อมกับ Docker Desktop)
-- [Git](https://git-scm.com/downloads)
+- **ผู้ใช้ (Learner)** สมัครสมาชิกแบบสองขั้น, มีโปรไฟล์, สะสมคะแนนดาว และจดบันทึกประวัติการเล่น
+- **เนื้อหา (Chapter & Level)** จัดเรียงตามความยากและมี max score/stars สำหรับวัดผล
+- **เกมเพลย์ (GamePlayHistory + LevelCompletion)** เก็บทุกครั้งที่เล่น รวมถึง best score/best time
+- **Gamification Layer**: lives, streaks, achievements, icons, ranking ช่วยเพิ่ม retention
 
-### 2. Clone โปรเจค
+## 🛣️ API Structure (`/api/v1`)
+
+| Method | Endpoint | Description | Auth |
+| ------ | -------- | ----------- | ---- |
+| POST | `/auth/login` | อีเมล+รหัสเพื่อรับ access/refresh token (cookie) | ❌ |
+| POST | `/auth/logout` | ล้าง cookie + refresh token | ✅ (cookie) |
+| POST | `/auth/refresh` | ออก access token ใหม่จาก refresh token | ✅ (cookie) |
+| POST | `/auth/register/step1` | ส่ง email/password รับ register token | ❌ |
+| POST | `/auth/register/step2` | ส่ง profile data พร้อม register token ใน cookie | ✅ (register cookie) |
+| POST | `/auth/forgot-password` | ส่ง PIN รีเซ็ตรหัส (idempotent) | ❌ |
+| POST | `/auth/reset-password` | รีเซ็ตรหัสด้วย email + PIN + new password | ❌ |
+| GET | `/users/lives` | ดูจำนวนหัวใจคงเหลือ (auto reset รายวัน) | ✅ |
+| PUT | `/users/lives` | ใช้หัวใจ 1 ดวงเมื่อเล่นเกม | ✅ |
+| PUT | `/users/lives/reset` | รีเซ็ตหัวใจกลับเต็ม | ✅ |
+| GET | `/users/streak` | ดู streak ปัจจุบัน/สูงสุด | ✅ |
+| PUT | `/users/streak/update` | อัปเดต streak เมื่อเล่นในวันใหม่ | ✅ |
+| GET | `/chapters` | ดึงรายการ chapter + level ที่ active | ✅ |
+| GET | `/chapters/:id` | ดึงรายละเอียด chapter เดียว | ✅ |
+| POST | `/game/submit` | บันทึกผลเล่น level (score/stars/time) | ✅ |
+
+> ทุก endpoint ที่ต้องยืนยันตัวตนใช้ `authMiddleware.verifyToken` ตรวจสอบ access token จาก HTTP-only cookie
+
+## ✨ Features
+
+- **Secure onboarding**: สมัคร 2 ขั้นพร้อม register token, JWT access+refresh ด้วย rotation, logout เคลียร์ทันที
+- **Gamified progression**: Chapter/Level, best score/stars/time, ประวัติการเล่น, last stage tracking
+- **Lives management**: quota รายวัน, ตรวจ reset อัตโนมัติ, error `NO_LIVES_LEFT`
+- **Daily streak engine**: ตรวจ same-day/next-day อัตโนมัติ, เก็บ longest streak
+- **Email recovery**: ส่ง PIN 6 หลักผ่าน Nodemailer, token หมดอายุใน 10 นาที
+- **Prisma + PostgreSQL schema**: strongly typed models, enum, composite index/unique constraints
+- **Docker-first**: Postgres, backend, (frontend stub) จัดการด้วย `docker-compose`
+
+## 🧰 Tech Stack
+
+- **Backend**: Node.js + Express 5 + Prisma ORM + JWT + Nodemailer
+- **Database**: PostgreSQL 16
+- **Infrastructure**: Docker, Docker Compose, Prisma migrations
+- **Auth & Security**: bcrypt hashing, HTTP-only cookies, token rotation, role enum
+
+## 🚀 How to Run
+
+### 1. System Requirements
+
+- Docker Desktop (รวม Docker Compose)
+- Git
+- ถ้ารันนอก Docker: Node.js 20+, npm, PostgreSQL 16
+
+### 2. Clone & Configure
 
 ```bash
 git clone <repository-url>
-cd project-name
+cd PROJECT-P'BIT-NONG'BRITE - TEST-2
+cp back-end/.env.example back-end/.env  # (ถ้ามี)
 ```
 
-### 3. รันโปรเจค
+### 3. Run with Docker
 
 ```bash
-# Build และ start ทุก services
+# build และ start (ดู log ใน terminal)
 docker-compose up --build
 
-# หรือรันใน background (ไม่ต้องดู logs)
+# หรือ background mode
 docker-compose up -d --build
 ```
 
-### 4. เข้าใช้งาน
+### 4. Access
+- Backend API: `http://localhost:4000/api/v1`
+- PostgreSQL: `localhost:5432`
 
-เมื่อทุก services เริ่มทำงานแล้ว:
-
-- **🌐 Frontend**: http://localhost:3000
-- **🚀 Backend**: http://localhost:4000  
-- **🗄️ Database**: localhost:5432
-
----
-
-## 📋 คำสั่งที่มีประโยชน์
-
-### ดู logs
+### 5. Useful commands
 
 ```bash
-# ดู logs ทุก services
+# Logs
 docker-compose logs -f
-
-# ดู logs เฉพาะ service
 docker-compose logs -f backend
-docker-compose logs -f frontend
-docker-compose logs -f db
-```
 
-### หยุดและเริ่มใหม่
-
-```bash
-# หยุด services
+# Stop / clean
 docker-compose down
+docker-compose down -v          # ล้าง volume
 
-# เริ่มใหม่
-docker-compose up
-
-# restart service เดียว
+# Restart service เดียว
 docker-compose restart backend
 ```
 
-### ลบข้อมูลและเริ่มใหม่
-
-```bash
-# ลบทุกอย่าง (รวม database)
-docker-compose down -v
-
-# สร้างใหม่หมด
-docker-compose up --build
-```
-
----
-
-## 🔧 การแก้ไขปัญหา
-
-### ปัญหาที่พบบ่อย
-
-**Port ชน:**
-
-```bash
-Error: Port 3000 is already in use
-```
-**แก้ไข:** หยุดโปรแกรมที่ใช้ port นั้นก่อน หรือเปลี่ยน port ใน `docker-compose.yml`
-
-**Database connection failed:**
-```bash
-Error: Connection refused
-```
-**แก้ไข:** รอให้ database start เสร็จก่อน (ประมาณ 30-60 วินาที)
-
-**Out of disk space:**
-```bash
-# ลบ images และ containers เก่า
-docker system prune -a
-```
-
-### ตรวจสอบสถานะ
-
-```bash
-# ดู services ที่กำลังทำงาน
-docker-compose ps
-
-# ตรวจสอบ health ของ database
-docker-compose exec db pg_isready -U admin -d mydb
-```
-
----
-
-## 🛠️ Development
-
-### การแก้ไขโค้ด
-
-- ไฟล์ที่แก้ไขจะ sync กับ container อัตโนมัติ
-- ไม่ต้อง restart services เมื่อแก้ไขโค้ด
-
- การติดตั้ง package ใหม่
-```bash
-# เข้าไปใน container
-docker-compose exec backend bash
-npm install <package-name>
-exit
-
-# rebuild container
-docker-compose up --build backend
-```
-
-### การรัน database migration
+### 6. Database migration
 
 ```bash
 docker-compose exec backend npx prisma migrate dev
 docker-compose exec backend npx prisma generate
 ```
 
----
+## 🛠️ Development Tips
 
-## 📁 โครงสร้างโปรเจค
+- โค้ด backend mount เข้า container สด ๆ ไม่ต้อง restart เมื่อแก้ไฟล์
+- ติดตั้งแพ็กเกจใหม่ได้จาก container:
+
+```bash
+docker-compose exec backend bash
+npm install <package>
+exit
+docker-compose up --build backend
+```
+
+## 🧱 Project Structure
 
 ```
 project/
-├── backend/                 # Node.js Backend
+├── back-end/                  # Express + Prisma
 │   ├── src/
 │   ├── prisma/
 │   ├── package.json
-│   └── Dockerfile
-├── frontend/                # Next.js Frontend  
-│   ├── src/
-│   ├── package.json
-│   └── Dockerfile
-└── docker-compose.yml       # Docker configuration
+│   └── backend-dockerfile
+├── front-end/                 # React/Next (Dockerfile พร้อม)
+│   └── fontend-dockerfile
+└── docker-compose.yml         # Orchestrates db/backend/(frontend)
 ```
 
----
+## 🩺 Troubleshooting
 
-## 💡 Tips
+- **Port ชน**: stop service ที่ใช้ port หรือแก้ port ใน `docker-compose.yml`
+- **DB connection refused**: รอ Postgres ขึ้น (healthcheck ~60s) หรือเช็ค env `DATABASE_URL`
+- **Low disk**: `docker system prune -a`
+- **Check status**:
 
-- **Development**: ใช้ `docker-compose up` เพื่อดู logs
-- **Production**: ใช้ `docker-compose up -d` เพื่อรันใน background  
-- **Debug**: ใช้ `docker-compose logs -f <service-name>` เพื่อดู logs service เฉพาะ
-- **Reset**: หากมีปัญหา ลอง `docker-compose down -v && docker-compose up --build`
-
----
-
-## 📞 ติดต่อ
-
-หากมีปัญหาในการติดตั้ง สามารถติดต่อได้ที่:
-- GitHub Issues: [Link]
-- Email: [Email]
+```bash
+docker-compose ps
+docker-compose exec db pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}
+```
