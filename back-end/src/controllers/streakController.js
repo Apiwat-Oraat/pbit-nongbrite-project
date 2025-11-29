@@ -7,16 +7,25 @@ const getStreak = async (req, res) => {
 
     if (!streak) {
       return res.status(200).json({
-        userId,
-        current: 0,
-        longest: 0,
+        success: true,
+        data: {
+          userId,
+          current: 0,
+          longest: 0,
+        }
       });
     }
 
-    res.json(streak);
+    res.status(200).json({
+      success: true,
+      data: streak
+    });
   } catch (err) {
     console.error("Error getStreak:", err);
-    res.status(500).json({ message: "Failed to get streak" });
+    res.status(500).json({ 
+      success: false,
+      message: "Failed to get streak" 
+    });
   }
 };
 
@@ -24,10 +33,16 @@ const updateStreak = async (req, res) => {
   try {
     const userId = req.user.userId;
     const streak = await streaksService.updateStreak(userId);
-    res.json(streak);
+    res.status(200).json({
+      success: true,
+      data: streak
+    });
   } catch (err) {
     console.error("Error updateStreak:", err);
-    res.status(500).json({ message: "Failed to update streak" });
+    res.status(500).json({ 
+      success: false,
+      message: "Failed to update streak" 
+    });
   }
 };
 

@@ -30,8 +30,9 @@ const chapterService = {
   },
 
   async getChapterById(chapterId) {
+    // chapterId ถูก validate แล้วใน controller และส่งมาเป็น number แล้ว
     const chapter = await prisma.chapter.findUnique({
-      where: { id: parseInt(chapterId) },
+      where: { id: chapterId },
       select: {
         id: true,
         title: true,

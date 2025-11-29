@@ -28,7 +28,7 @@ async function getLives(userId) {
   const now = new Date();
   const lastReset = life.lastResetAt;
 
-  if (!isSameDay(now, lastReset)) {
+  if (!lastReset || !isSameDay(now, lastReset)) {
     life = await prisma.life.update({
       where: { userId },
       data: {
@@ -49,22 +49,8 @@ async function getLives(userId) {
  * ใช้หัวใจ 1 ดวง
  */
 async function useLife(userId) {
-  // เรียก getLives เพื่อให้แน่ใจว่า record มีและ reset วันใหม่แล้ว
-  let life = await prisma.life.findUnique({
-    where: { userId },
-  });
 
-  if (!life) {
-    // ถ้าไม่มี lives → auto create
-    life = await prisma.life.create({
-      data: {
-        userId,
-        current: MAX_LIVES,
-        max: MAX_LIVES,
-        lastResetAt: new Date(),
-      },
-    });
-  }
+  const life = await getLives(userId);
 
   if (life.current <= 0) {
     throw new Error("NO_LIVES_LEFT");
@@ -81,7 +67,7 @@ async function useLife(userId) {
     current: updated.current,
     max: updated.max,
     lastResetAt: updated.lastResetAt,
-  };
+  }
 }
 
 

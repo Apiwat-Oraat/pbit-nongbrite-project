@@ -1,9 +1,13 @@
 import { PrismaClient } from "@prisma/client";
+import { calculateRank, calculateLevel } from "../utils/rankSystem.js"; 
+
 const prisma = new PrismaClient(); 
-// แนะนำ: ถ้ามีไฟล์ prismaClient.js ให้ import มาใช้แทน new PrismaClient() จะดีกว่าครับ
 
 const GameService = {
 
+  // =========================================
+  // ฟังก์ชันที่ 1: ส่งผลการเล่น (Submit)
+  // =========================================
   async submitLevelResult(userId, levelId, score, stars, playTime) {
 
     // 1. ตรวจสอบว่ามีด่านนี้จริงไหม
@@ -16,7 +20,7 @@ const GameService = {
 
     const chapterId = level.chapterId;
 
-    // 2. บันทึก History (Log)
+    // 2. บันทึก History
     await prisma.gamePlayHistory.create({
       data: { userId, levelId, score, stars, playTime }
     });
@@ -31,7 +35,6 @@ const GameService = {
     const isPassed = stars > 0;
 
     if (!existing) {
-      // --- กรณี A: เล่นครั้งแรก ---
       await prisma.levelCompletion.create({
         data: {
           userId,
@@ -39,22 +42,15 @@ const GameService = {
           score,
           stars,
           time: playTime,
-
           bestScore: score,
           bestStars: stars,
-          // ✅ แก้คำผิด: bestTiem -> bestTime
           bestTime: isPassed ? playTime : 999999,
           attempts: 1
         }
       });
     } else {
-      // --- กรณี B: เคยเล่นแล้ว ---
-
-      // ✅ แก้คำผิด: bestTiem -> bestTime
       let newBestTime = existing.bestTime;
-      
       if (isPassed) {
-        // ✅ แก้คำผิด และ Logic
         if (existing.bestTime === 999999 || playTime < existing.bestTime) {
           newBestTime = playTime;
         }
@@ -68,16 +64,14 @@ const GameService = {
           time: playTime,
           completedAt: new Date(),
           attempts: { increment: 1 },
-
           bestScore: Math.max(existing.bestScore, score),
           bestStars: Math.max(existing.bestStars, stars),
-          // ✅ แก้คำผิด: bestTiem -> bestTime
           bestTime: newBestTime
         }
       });
-    } // <--- 🛑 ปีกกาปิด else อยู่ตรงนี้
+    } 
 
-    // 4. อัปเดต LastStage (ต้องอยู่นอก if/else เพื่อให้ทำงานทั้งคู่)
+    // 4. อัปเดต LastStage
     await prisma.lastStage.upsert({
         where: { userId: userId },
         update: {
@@ -96,8 +90,91 @@ const GameService = {
         }
     });
 
-    return { success: true };
+    // 5. อัปเดต Profile & Rank
+    const aggregations = await prisma.levelCompletion.aggregate({
+        _sum: { 
+            bestScore: true,
+            bestStars: true 
+        },
+        where: { userId: userId }
+    });
+
+    const totalScore = aggregations._sum.bestScore || 0;
+    const totalStars = aggregations._sum.bestStars || 0;
+
+    const newRankInfo = calculateRank(totalScore); 
+    const newLevel = calculateLevel(totalScore);
+
+    await prisma.profile.upsert({
+        where: { userId: userId },
+        update: {
+            totalScore: totalScore,
+            totalStars: totalStars,
+            currentRank: newLevel,    
+            updatedAt: new Date()
+        },
+        create: {
+            userId: userId,
+            totalScore: totalScore,
+            totalStars: totalStars,
+            currentRank: newLevel,
+        }
+    });
+
+    return { 
+        success: true,
+        earnedScore: score,
+        totalScore: totalScore,
+        rank: newRankInfo.name,
+        rankLabel: newRankInfo.label,
+        playerLevel: newLevel
+    };
+  },
+
+  // =========================================
+  // ฟังก์ชันที่ 2: ดึงอันดับ (Ranking)
+  // =========================================
+  async getLeaderboard() {
+    const leaderboard = await prisma.profile.findMany({
+        take: 10, // ดึงแค่ 10 อันดับแรก
+        
+        // กฎการตัดสิน: คะแนน > ดาว > เวลาที่ทำได้
+        orderBy: [
+            { totalScore: 'desc' },   
+            { totalStars: 'desc' },   
+            { updatedAt: 'asc' }      
+        ],
+        
+        include: {
+            user: {
+                select: {
+                    id: true,
+                    name: true,
+                    avatar: true
+                }
+            }
+        }
+    });
+
+    return leaderboard.map((player, index) => {
+        const rankInfo = calculateRank(player.totalScore);
+
+        return {
+            rank: index + 1,
+            userId: player.userId,
+            name: player.user.name || "Unknown Hero",
+            avatar: player.user.avatar,
+            
+            totalScore: player.totalScore,
+            totalStars: player.totalStars,
+            
+            tier: rankInfo.name,     
+            tierLabel: rankInfo.label,
+            tierIcon: rankInfo.icon  
+        };
+    });
   }
+
 };
 
 export default GameService;

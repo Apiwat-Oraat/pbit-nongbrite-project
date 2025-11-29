@@ -13,8 +13,7 @@ const chapterController = {
       console.error('Get all chapters error:', error);
       res.status(500).json({
         success: false,
-        message: 'Failed to get all chapters',
-        error: error.message
+        message: 'Failed to get all chapters'
       });
     }
   },
@@ -22,7 +21,17 @@ const chapterController = {
   async getChapterById(req, res) {
     try {
       const { chapterId } = req.params;
-      const chapter = await chapterService.getChapterById(chapterId);
+      
+      // Validation: ตรวจสอบว่า chapterId เป็นตัวเลข
+      const chapterIdNum = parseInt(chapterId);
+      if (isNaN(chapterIdNum) || chapterIdNum <= 0) {
+        return res.status(400).json({
+          success: false,
+          message: "Invalid chapterId: must be a positive number"
+        });
+      }
+
+      const chapter = await chapterService.getChapterById(chapterIdNum);
 
       res.status(200).json({
         success: true,
@@ -40,8 +49,7 @@ const chapterController = {
 
       res.status(500).json({
         success: false,
-        message: 'Failed to get chapter',
-        error: error.message
+        message: 'Failed to get chapter'
       });
     }
   }

@@ -31,7 +31,10 @@ const AuthController = {
       });
 
     } catch (error) {
-      res.status(401).json({ error: error.message });
+      res.status(401).json({ 
+        success: false,
+        message: error.message 
+      });
     }
   },
 
@@ -79,8 +82,7 @@ const AuthController = {
 
       res.status(200).json({
         success: true,
-        message: "Step 1 complete. Proceed to profile info.",
-        // debug_token: registerToken
+        message: "Step 1 complete. Proceed to profile info."
       });
     } catch (error) {
       res.status(400).json({ success: false, message: error.message });
@@ -102,7 +104,7 @@ const AuthController = {
       const newUser = await AuthService.registerStep2(registerToken, name, age, gender);
 
       // 3. สร้าง login Token (Access/Refresh) ทันที เพื่อให้ User ใช้งานได้เลย
-      const payload = { userId: newUser.userId, role: 'user' };
+      const payload = { userId: newUser.userId, role: 'USER' };
       const accessToken = tokenService.generateAccessToken(payload);
       const refreshToken = tokenService.generateRefreshToken(payload);
 
@@ -158,7 +160,10 @@ const AuthController = {
     try {
       const refreshToken = req.cookies.refreshToken;
       if (!refreshToken) {
-        return res.status(401).json({ message: "No token provided" });
+        return res.status(401).json({ 
+          success: false,
+          message: "No token provided" 
+        });
       }
 
       const { accessToken, refreshToken: newRefreshToken } = await AuthService.refreshTokens(refreshToken);
@@ -179,14 +184,20 @@ const AuthController = {
         });
       }
 
-      res.json({ success: true, message: "Token refreshed" });
+      res.status(200).json({ 
+        success: true, 
+        message: "Token refreshed" 
+      });
 
     } catch (err) {
 
       console.error("Refresh Token Error:", err.message);
       res.clearCookie('accessToken');
       res.clearCookie('refreshToken');
-      res.status(403).json({ message: "Invalid refresh token, please login again" });
+      res.status(403).json({ 
+        success: false,
+        message: "Invalid refresh token, please login again" 
+      });
     }
   },
 
@@ -195,10 +206,9 @@ const AuthController = {
 
     try {
       // เรียก Service
-      // (ซึ่งใน Service เราคุยกันแล้วว่าถ้าไม่เจอ User ให้ return เงียบๆ ห้าม throw error)
       await AuthService.forgotPassword(email);
 
-      // ✅ ตอบ Success เสมอ ไม่ว่าจะมีอีเมลจริงหรือไม่
+      //Success เสมอ ไม่ว่าจะมีอีเมลจริงหรือไม่
       return res.status(200).json({
         success: true,
         message: "If an account exists for this email, we have sent a reset PIN."
@@ -207,8 +217,6 @@ const AuthController = {
     } catch (err) {
       console.error("Forgot Password Error:", err);
 
-      // 🚨 ถ้าเป็น Error อื่นๆ (เช่น DB ล่ม, ส่งเมลไม่ได้) ให้ตอบ 500
-      // แต่ "ห้าม" แยก case NotFoundError ออกมาตอบ User
       return res.status(500).json({
         success: false,
         message: "Unable to process request at this time."
@@ -221,9 +229,15 @@ const AuthController = {
     const { email, pin, newPassword } = req.body;
     try {
       await AuthService.resetPassword(email, pin, newPassword);
-      res.json({ message: "Password reset successfully" });
+      res.status(200).json({ 
+        success: true,
+        message: "Password reset successfully" 
+      });
     } catch (err) {
-      res.status(400).json({ message: err.message });
+      res.status(400).json({ 
+        success: false,
+        message: err.message 
+      });
     }
   }
 

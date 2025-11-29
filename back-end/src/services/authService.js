@@ -96,18 +96,23 @@ const AuthService = {
   },
 
   async refreshTokens(refreshToken) {
-    try {
-      const payload = tokenService.verifyRefreshToken(refreshToken);
-      // สร้าง accessToken ใหม่
-      const accessToken = tokenService.generateAccessToken({ userId: payload.userId });
+    const payload = tokenService.verifyRefreshToken(refreshToken);
 
-      // Optional: rotate refresh token (เพิ่มความปลอดภัย)
-      const newRefreshToken = tokenService.generateRefreshToken({ userId: payload.userId });
-
-      return { accessToken, refreshToken: newRefreshToken };
-    } catch (err) {
-      throw new Error("Invalid or expired refresh token");
+    const user = await prisma.user.findUnique({ where: { id: payload.userId } });
+    if (!user || user.refreshToken !== refreshToken) {
+      throw new Error("Invalid or Expired Refresh Token");
     }
+
+    const tokenPayload = { userId: user.id, role: user.role };
+    const accessToken = tokenService.generateAccessToken(tokenPayload);
+    const newRefreshToken = tokenService.generateRefreshToken(tokenPayload);
+
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { refreshToken: newRefreshToken }
+    });
+
+    return { accessToken, refreshToken: newRefreshToken };
   },
 
   async forgotPassword(email) {
@@ -167,7 +172,9 @@ const AuthService = {
       data: { password: hashedPassword }
     });
 
-    await prisma.resetToken.delete({ where: { id: resetToken.userId } });
+    await prisma.resetToken.deleteMany({
+      where: { userId: user.id }
+    });
   }
 
 

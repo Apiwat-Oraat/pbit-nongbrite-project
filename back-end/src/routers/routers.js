@@ -7,6 +7,15 @@ import GameRouters from './gameRouters.js';
 
 const router = express.Router();
 
+
+// Health check (ไม่ต้อง auth)
+router.get('/health', (req, res) => {
+  res.status(200).json({
+    success: true,
+    message: "Server is running",
+    timestamp: new Date().toISOString()
+  });
+});
 AuthRoute(router);
 LivesRouters(router);
 StreakRouters(router);
