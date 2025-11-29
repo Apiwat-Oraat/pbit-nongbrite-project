@@ -1,5 +1,5 @@
 import AuthController from "../controllers/authController.js";
-import { validateEmail, validatePassword, validateAge, validateGender, validatePIN } from "../middlewares/validateEmailMiddleware.js";
+import { validateEmail, validatePassword, validateAge, validateGender, validatePIN } from "../middlewares/validateMiddleware.js";
 
 
 const AuthRoutes = (router) => {

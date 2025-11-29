@@ -24,9 +24,11 @@ export const validateEmail = (req, res, next) => {
 
 /**
  * Validate password strength
+ * รองรับทั้ง password และ newPassword field
  */
 export const validatePassword = (req, res, next) => {
-  const { password } = req.body;
+  // รองรับทั้ง password และ newPassword (สำหรับ reset-password endpoint)
+  const password = req.body.password || req.body.newPassword;
 
   if (!password) {
     return res.status(400).json({
