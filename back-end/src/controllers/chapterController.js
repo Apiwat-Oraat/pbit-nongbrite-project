@@ -52,6 +52,25 @@ const chapterController = {
         message: 'Failed to get chapter'
       });
     }
+  },
+
+  async getChaptersWithProgress(req, res) {
+    try {
+      const userId = req.user.userId; // ดึง userId จาก auth middleware
+
+      const chapters = await chapterService.getChaptersWithProgress(userId);
+
+      res.status(200).json({
+        success: true,
+        data: { chapters }
+      });
+    } catch (error) {
+      console.error('Get chapters with progress error:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Failed to get chapters with progress'
+      });
+    }
   }
 }
 
