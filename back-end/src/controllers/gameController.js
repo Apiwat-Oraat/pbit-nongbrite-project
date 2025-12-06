@@ -1,5 +1,6 @@
 // ✅ 1. เติม .js
 import GameService from "../services/gameService.js";
+import RankingCacheService from "../services/rankingCacheService.js";
 
 const GameController = {
   async submitLevel(req, res) {
@@ -85,6 +86,40 @@ const GameController = {
       res.status(500).json({ 
         success: false, 
         message: "Failed to fetch leaderboard" 
+      });
+    }
+  },
+
+  /**
+   * Rebuild ranking cache (Admin only - ควรเพิ่ม auth middleware)
+   * ใช้เมื่อต้องการ sync cache ทั้งหมดใหม่
+   */
+  async rebuildCache(req, res) {
+    try {
+      // TODO: เพิ่ม admin check middleware
+      // if (req.user.role !== 'ADMIN') {
+      //   return res.status(403).json({ success: false, message: "Forbidden" });
+      // }
+
+      res.status(202).json({
+        success: true,
+        message: "Cache rebuild started. This may take a while..."
+      });
+
+      // รัน rebuild ใน background (ไม่ block response)
+      RankingCacheService.rebuildAllCache()
+        .then(result => {
+          console.log('✅ Cache rebuild completed:', result);
+        })
+        .catch(error => {
+          console.error('❌ Cache rebuild failed:', error);
+        });
+
+    } catch (error) {
+      console.error("Rebuild Cache Error:", error);
+      res.status(500).json({ 
+        success: false, 
+        message: "Failed to rebuild cache" 
       });
     }
   }

@@ -1,5 +1,7 @@
 import { PrismaClient } from "@prisma/client";
-import { calculateRank, calculateLevel } from "../utils/rankSystem.js"; 
+import { calculateRank, calculateLevel } from "../utils/rankSystem.js";
+import RankingCacheService from "./rankingCacheService.js";
+import streaksService from "./streaksService.js";
 
 const prisma = new PrismaClient(); 
 
@@ -105,6 +107,13 @@ const GameService = {
     const newRankInfo = calculateRank(totalScore); 
     const newLevel = calculateLevel(totalScore);
 
+    // ดึงคะแนนเก่าก่อนอัปเดต (เพื่อ update cache)
+    const oldProfile = await prisma.profile.findUnique({
+      where: { userId: userId },
+      select: { totalScore: true }
+    });
+    const oldScore = oldProfile?.totalScore || 0;
+
     await prisma.profile.upsert({
         where: { userId: userId },
         update: {
@@ -121,6 +130,28 @@ const GameService = {
         }
     });
 
+    // 6. อัปเดต Streak (async - ไม่ต้องรอ)
+    // อัปเดต streak เมื่อ user submit level
+    streaksService.updateStreak(userId)
+      .catch(err => {
+        console.error('Failed to update streak:', err);
+        // ไม่ throw error เพื่อไม่ให้กระทบ flow หลัก
+      });
+
+    // 7. อัปเดต RankingCache (async - ไม่ต้องรอ)
+    // ถ้าคะแนนเปลี่ยน ให้อัปเดต cache ของ user นี้และคนที่ได้รับผลกระทบ
+    if (totalScore !== oldScore) {
+      RankingCacheService.updateUserCache(userId, totalScore)
+        .then(() => {
+          // อัปเดต rank ของคนอื่นที่ได้รับผลกระทบ (optional - อาจช้า)
+          // RankingCacheService.updateAffectedRanks(totalScore, oldScore);
+        })
+        .catch(err => {
+          console.error('Failed to update ranking cache:', err);
+          // ไม่ throw error เพื่อไม่ให้กระทบ flow หลัก
+        });
+    }
+
     return { 
         success: true,
         earnedScore: score,
@@ -134,23 +165,64 @@ const GameService = {
   // =========================================
   // ฟังก์ชันที่ 2: ดึงอันดับ (Ranking)
   // =========================================
-  async getLeaderboard() {
-    const leaderboard = await prisma.profile.findMany({
-        take: 10, // ดึงแค่ 10 อันดับแรก
+  async getLeaderboard(useCache = true) {
+    // ใช้ RankingCache เพื่อเพิ่มประสิทธิภาพ
+    if (useCache) {
+      try {
+        const cachedLeaderboard = await RankingCacheService.getLeaderboardFromCache(10);
         
-        // กฎการตัดสิน: คะแนน > ดาว > เวลาที่ทำได้
+        // ดึง totalStars จาก Profile (เพราะ RankingCache ไม่มี)
+        const userIds = cachedLeaderboard.map(p => p.userId);
+        const profiles = await prisma.profile.findMany({
+          where: { userId: { in: userIds } },
+          select: {
+            userId: true,
+            totalStars: true
+          }
+        });
+
+        const profileMap = new Map(profiles.map(p => [p.userId, p]));
+
+        return cachedLeaderboard.map((player) => {
+          const profile = profileMap.get(player.userId);
+          const rankInfo = calculateRank(player.totalScore);
+
+          return {
+            rank: player.rank,
+            userId: player.userId,
+            name: player.name,
+            avatar: player.avatar,
+            
+            totalScore: player.totalScore,
+            totalStars: profile?.totalStars || 0,
+            
+            tier: rankInfo.name,     
+            tierLabel: rankInfo.label,
+            tierIcon: rankInfo.icon  
+          };
+        });
+      } catch (error) {
+        console.error('Error fetching from cache, falling back to Profile:', error);
+        // Fallback to Profile query if cache fails
+        return this.getLeaderboard(false);
+      }
+    }
+
+    // Fallback: Query จาก Profile โดยตรง (ใช้เมื่อ cache ไม่พร้อม)
+    const leaderboard = await prisma.profile.findMany({
+        take: 10,
         orderBy: [
             { totalScore: 'desc' },   
             { totalStars: 'desc' },   
             { updatedAt: 'asc' }      
         ],
-        
         include: {
             user: {
                 select: {
                     id: true,
                     name: true,
-                    avatar: true
+                    avatar: true,
+                    displayName: true
                 }
             }
         }
@@ -162,7 +234,7 @@ const GameService = {
         return {
             rank: index + 1,
             userId: player.userId,
-            name: player.user.name || "Unknown Hero",
+            name: player.user.displayName || player.user.name || "Unknown Hero",
             avatar: player.user.avatar,
             
             totalScore: player.totalScore,

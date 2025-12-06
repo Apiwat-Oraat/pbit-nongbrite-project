@@ -4,3 +4,7 @@ npm-debug.log*
 !.env.example
 .git
 src/generated/prisma/
+
+# Documentation files (ไม่ต้องการ commit)
+RANKING_CACHE_USAGE.md
+RANKING_CACHE_GUIDE.md

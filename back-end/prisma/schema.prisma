@@ -43,7 +43,7 @@ model Streak {
   longest        Int       @default(0)
   lastActiveDate DateTime?
   updatedAt      DateTime  @updatedAt
-  user           User      @relation(fields: [userId], references: [id])
+  user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model Life {
@@ -53,7 +53,7 @@ model Life {
   max         Int      @default(5)
   updatedAt   DateTime @updatedAt
   lastResetAt DateTime @default(now())
-  user        User     @relation(fields: [userId], references: [id])
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model LastStage {
@@ -65,9 +65,9 @@ model LastStage {
   score     Int      @default(0)
   stars     Int      @default(0)
 
-  chapter Chapter @relation(fields: [chapterId], references: [id])
-  level   Level   @relation(fields: [levelId], references: [id])
-  user    User    @relation(fields: [userId], references: [id])
+  chapter Chapter @relation(fields: [chapterId], references: [id], onDelete: Cascade)
+  level   Level   @relation(fields: [levelId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model Chapter {
@@ -95,7 +95,7 @@ model Level {
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 
-  chapter     Chapter           @relation(fields: [chapterId], references: [id])
+  chapter     Chapter           @relation(fields: [chapterId], references: [id], onDelete: Cascade)
   completions LevelCompletion[]
   gameHistory GamePlayHistory[]
   lastStages  LastStage[]
@@ -118,8 +118,8 @@ model LevelCompletion {
   bestTime    Int      @default(999999)
   metadata    Json?
 
-  level Level @relation(fields: [levelId], references: [id])
-  user  User  @relation(fields: [userId], references: [id])
+  level Level @relation(fields: [levelId], references: [id], onDelete: Cascade)
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, levelId])
   @@index([userId, completedAt(sort: Desc)])
@@ -135,8 +135,8 @@ model GamePlayHistory {
   playedAt DateTime @default(now())
   metadata Json?
 
-  user  User  @relation(fields: [userId], references: [id])
-  level Level @relation(fields: [levelId], references: [id])
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  level Level @relation(fields: [levelId], references: [id], onDelete: Cascade)
 
   @@index([userId, levelId, playedAt(sort: Desc)])
 }
@@ -160,8 +160,8 @@ model AchievementUnlock {
   unlockedAt    DateTime @default(now())
   isShowInRank  Boolean  @default(true)
 
-  achievement Achievement @relation(fields: [achievementId], references: [id])
-  user        User        @relation(fields: [userId], references: [id])
+  achievement Achievement @relation(fields: [achievementId], references: [id], onDelete: Cascade)
+  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, achievementId])
   @@index([userId, unlockedAt(sort: Desc)])
@@ -183,7 +183,7 @@ model Profile {
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
-  user User @relation(fields: [userId], references: [id])
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([totalScore(sort: Desc)])
   @@index([currentStreak(sort: Desc)])
@@ -208,8 +208,8 @@ model UserIcon {
   iconId     Int
   unlockedAt DateTime @default(now())
 
-  icon Icon @relation(fields: [iconId], references: [id])
-  user User @relation(fields: [userId], references: [id])
+  icon Icon @relation(fields: [iconId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, iconId])
   @@index([userId])
@@ -222,7 +222,7 @@ model RankingCache {
   points      Int
   lastUpdated DateTime @updatedAt
 
-  user User @relation(fields: [userId], references: [id])
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([rank])
   @@index([points(sort: Desc)])
@@ -235,7 +235,7 @@ model ResetToken {
   expiresAt DateTime
   createdAt DateTime @default(now())
 
-  user User @relation(fields: [userId], references: [id])
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, pin])
 }
