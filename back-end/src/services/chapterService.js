@@ -4,8 +4,8 @@ const prisma = new PrismaClient();
 
 const chapterService = {
 
-  async getAllChapters() {
-    return await prisma.chapter.findMany({
+  async getAllChapters(userId = null) {
+    const chapters = await prisma.chapter.findMany({
       orderBy: { orderIndex: 'asc' },
       select: {
         id: true,
@@ -27,9 +27,16 @@ const chapterService = {
         }
       }
     });
+
+    // ถ้ามี userId ให้คำนวณ unlocked status
+    if (userId) {
+      return await this.addUnlockedStatus(chapters, userId);
+    }
+
+    return chapters;
   },
 
-  async getChapterById(chapterId) {
+  async getChapterById(chapterId, userId = null) {
     // chapterId ถูก validate แล้วใน controller และส่งมาเป็น number แล้ว
     const chapter = await prisma.chapter.findUnique({
       where: { id: chapterId },
@@ -58,8 +65,82 @@ const chapterService = {
       throw new Error("Chapter not found");
     }
 
+    // ถ้ามี userId ให้คำนวณ unlocked status
+    if (userId) {
+      const chapters = await this.addUnlockedStatus([chapter], userId);
+      return chapters[0];
+    }
+
     return chapter;
   },
+
+  /**
+   * เพิ่ม unlocked status ให้กับ levels ใน chapters
+   * Logic: 
+   * - Level แรกของ Chapter แรก = unlocked ตั้งแต่เริ่มต้น
+   * - Level ถัดไป = unlocked เมื่อผ่าน level ก่อนหน้า (bestStars > 0)
+   * - Level แรกของ Chapter ถัดไป = unlocked เมื่อผ่าน level สุดท้ายของ chapter ก่อนหน้า
+   */
+  async addUnlockedStatus(chapters, userId) {
+    // ดึงข้อมูล completions ของ user ทั้งหมด
+    const completions = await prisma.levelCompletion.findMany({
+      where: { userId },
+      select: {
+        levelId: true,
+        bestStars: true
+      }
+    });
+
+    // สร้าง map สำหรับเช็คว่า level ไหนผ่านแล้ว (bestStars > 0)
+    const completedLevels = new Set(
+      completions
+        .filter(c => c.bestStars > 0)
+        .map(c => c.levelId)
+    );
+
+    // คำนวณ unlocked status
+    // Logic: level จะ unlock เมื่อ level ก่อนหน้าทั้งหมด (ในลำดับ) ผ่านแล้ว
+    return chapters.map(chapter => {
+      const levels = chapter.levels.map((level, index) => {
+        let isUnlocked = false;
+
+        if (chapter.orderIndex === 1 && index === 0) {
+          // Level แรกของ Chapter แรก = unlocked ตั้งแต่เริ่มต้น
+          isUnlocked = true;
+        } else if (index === 0) {
+          // Level แรกของ Chapter ถัดไป = unlocked เมื่อผ่าน level สุดท้ายของ chapter ก่อนหน้า
+          const prevChapter = chapters.find(c => c.orderIndex === chapter.orderIndex - 1);
+          if (prevChapter && prevChapter.levels.length > 0) {
+            const lastLevelOfPrevChapter = prevChapter.levels[prevChapter.levels.length - 1];
+            isUnlocked = completedLevels.has(lastLevelOfPrevChapter.id);
+          }
+        } else {
+          // Level ถัดไป = unlocked เมื่อผ่าน level ก่อนหน้าทั้งหมด (ในลำดับ)
+          // เช็คว่า level ก่อนหน้าทั้งหมดผ่านแล้วหรือไม่
+          let allPreviousLevelsCompleted = true;
+          for (let i = 0; i < index; i++) {
+            const prevLevel = chapter.levels[i];
+            if (!completedLevels.has(prevLevel.id)) {
+              allPreviousLevelsCompleted = false;
+              break;
+            }
+          }
+          isUnlocked = allPreviousLevelsCompleted;
+        }
+
+        return {
+          ...level,
+          isUnlocked
+        };
+      });
+
+      return {
+        ...chapter,
+        levels
+      };
+    });
+  },
+
 
   // =========================================
   // ฟังก์ชัน: ดึงรายชื่อ Chapter พร้อมดาวที่ทำได้

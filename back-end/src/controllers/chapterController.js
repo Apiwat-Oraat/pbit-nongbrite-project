@@ -1,13 +1,15 @@
 import chapterService from "../services/chapterService.js";
+import { autoFormatDates, formatToThai } from "../utils/dateFormatter.js";
 
 const chapterController = {
 
   async getAllChapters(req, res){
     try {
-      const chapters = await chapterService.getAllChapters();
+      const userId = req.user.userId; // มี auth middleware อยู่แล้ว
+      const chapters = await chapterService.getAllChapters(userId);
       res.status(200).json({
         success: true,
-        data: { chapters }
+        data: { chapters: autoFormatDates(chapters, formatToThai) }
       });
     } catch (error) {
       console.error('Get all chapters error:', error);
@@ -31,11 +33,12 @@ const chapterController = {
         });
       }
 
-      const chapter = await chapterService.getChapterById(chapterIdNum);
+      const userId = req.user.userId; // มี auth middleware อยู่แล้ว
+      const chapter = await chapterService.getChapterById(chapterIdNum, userId);
 
       res.status(200).json({
         success: true,
-        data: chapter
+        data: autoFormatDates(chapter, formatToThai)
       });
     } catch (error) {
       console.error('Get chapter error:', error);

@@ -1,6 +1,7 @@
-// ✅ 1. เติม .js
+
 import GameService from "../services/gameService.js";
 import RankingCacheService from "../services/rankingCacheService.js";
+import { autoFormatDates, formatToThai } from "../utils/dateFormatter.js";
 
 const GameController = {
   async submitLevel(req, res) {
@@ -79,13 +80,39 @@ const GameController = {
       const leaderboard = await GameService.getLeaderboard();
       res.status(200).json({
         success: true,
-        data: leaderboard
+        data: autoFormatDates(leaderboard, formatToThai)
       });
     } catch (error) {
       console.error("Get Ranking Error:", error);
       res.status(500).json({ 
         success: false, 
         message: "Failed to fetch leaderboard" 
+      });
+    }
+  },
+
+  async getLastStage(req, res) {
+    try {
+      const userId = req.user.userId;
+      const lastStage = await GameService.getLastStage(userId);
+
+      if (!lastStage) {
+        return res.status(200).json({
+          success: true,
+          data: null,
+          message: "No stage played yet"
+        });
+      }
+
+      res.status(200).json({
+        success: true,
+        data: autoFormatDates(lastStage, formatToThai)
+      });
+    } catch (error) {
+      console.error("Get Last Stage Error:", error);
+      res.status(500).json({
+        success: false,
+        message: "Failed to fetch last stage"
       });
     }
   },

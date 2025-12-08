@@ -3,6 +3,13 @@ import authMiddleware from "../middlewares/authMiddleware.js";
 import { validateAge, validateGender } from "../middlewares/validateMiddleware.js";
 
 const UserRouters = (router) => {
+  // ดึงข้อมูล profile
+  router.get(
+    "/user/profile",
+    authMiddleware.verifyToken,
+    UserController.getProfile
+  );
+
   // อัปเดต profile (name, age, gender, icon)
   // ใช้ validateAge และ validateGender เฉพาะเมื่อมีการส่งค่าเข้ามา
   router.put(

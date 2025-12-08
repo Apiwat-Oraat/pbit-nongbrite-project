@@ -1,6 +1,7 @@
 import AuthService from "../services/authService.js";
 import tokenService from "../services/tokenService.js";
 import userService from "../services/userService.js";
+import { autoFormatDates, formatToThai } from "../utils/dateFormatter.js";
 
 const AuthController = {
   login: async (req, res) => {
@@ -27,7 +28,7 @@ const AuthController = {
       res.status(200).json({
         success: true,
         message: "Login successfully",
-        data: data.user,
+        data: autoFormatDates(data.user, formatToThai),
       });
 
     } catch (error) {
@@ -134,7 +135,7 @@ const AuthController = {
       res.status(201).json({
         success: true,
         message: "User created successfully",
-        data: newUser,
+        data: autoFormatDates(newUser, formatToThai),
       });
     } catch (error) {
       if (error.code === 'P2002' && error.meta?.target?.includes('email')) {
@@ -205,21 +206,30 @@ const AuthController = {
     const { email } = req.body;
 
     try {
-      // เรียก Service
+      // เรียก Service - จะ throw error ถ้าไม่มี email ในระบบ
       await AuthService.forgotPassword(email);
 
-      //Success เสมอ ไม่ว่าจะมีอีเมลจริงหรือไม่
+      // ส่ง PIN สำเร็จ (เฉพาะ user ที่มี email ในระบบ)
       return res.status(200).json({
         success: true,
-        message: "If an account exists for this email, we have sent a reset PIN."
+        message: "Reset PIN has been sent to your email."
       });
 
     } catch (err) {
       console.error("Forgot Password Error:", err);
 
+      // ตรวจสอบว่าเป็น error ที่ไม่มี email หรือ error อื่นๆ
+      if (err.message === "Email not found in our system") {
+        return res.status(404).json({
+          success: false,
+          message: "Email not found in our system. Please check your email address."
+        });
+      }
+
+      // Error อื่นๆ (เช่น email service error)
       return res.status(500).json({
         success: false,
-        message: "Unable to process request at this time."
+        message: "Unable to process request at this time. Please try again later."
       });
     }
   },

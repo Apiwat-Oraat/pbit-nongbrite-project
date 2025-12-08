@@ -10,6 +10,26 @@ const userService = {
   },
 
   /**
+   * ดึงข้อมูล profile ของ user
+   * @param {number} userId - User ID
+   * @returns {Object} User และ Profile
+   */
+  async getProfile(userId) {
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      include: {
+        profile: true
+      }
+    });
+
+    if (!user) {
+      throw new Error("User not found");
+    }
+
+    return user;
+  },
+
+  /**
    * อัปเดตข้อมูล profile ของ user
    * @param {number} userId - User ID
    * @param {Object} data - ข้อมูลที่จะอัปเดต { name?, age?, gender?, icon? }

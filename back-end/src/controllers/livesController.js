@@ -1,4 +1,5 @@
 import livesService from "../services/livesService.js";
+import { autoFormatDates, formatToThai } from "../utils/dateFormatter.js";
 
 const livesController = {
   async getLives(req, res) {
@@ -6,7 +7,7 @@ const livesController = {
       const lives = await livesService.getLives(req.user.userId);
       res.status(200).json({
         success: true,
-        data: lives
+        data: autoFormatDates(lives, formatToThai)
       });
     } catch (err) {
       res.status(500).json({ 
@@ -21,7 +22,7 @@ const livesController = {
       const lives = await livesService.useLife(req.user.userId);
       res.status(200).json({
         success: true,
-        data: lives
+        data: autoFormatDates(lives, formatToThai)
       });
     } catch (err) {
       if (err.message === "NO_LIVES_LEFT") {
@@ -42,7 +43,7 @@ const livesController = {
       const lives = await livesService.resetLives(req.user.userId);
       res.status(200).json({
         success: true,
-        data: lives
+        data: autoFormatDates(lives, formatToThai)
       });
     } catch (err) {
       res.status(500).json({ 

@@ -120,8 +120,7 @@ const AuthService = {
     const user = await prisma.user.findUnique({ where: { email } });
 
     if (!user) {
-      console.log(`[ForgotPassword] Email ${email} not found, but pretending success.`);
-      return;
+      throw new Error("Email not found in our system");
     }
 
     const pin = crypto.randomInt(100000, 999999).toString();

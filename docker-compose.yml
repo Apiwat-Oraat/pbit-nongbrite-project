@@ -32,6 +32,8 @@ services:
       JWT_SECRET: ${JWT_SECRET}
       EMAIL_USER: ${EMAIL_USER}
       EMAIL_PASS: ${EMAIL_PASS}
+      SMTP_HOST: ${SMTP_HOST:-smtp.gmail.com}  
+      SMTP_PORT: ${SMTP_PORT:-587}              
       NODE_ENV: development
     depends_on:
       db:

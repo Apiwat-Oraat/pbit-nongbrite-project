@@ -1,4 +1,5 @@
 import streaksService from "../services/streaksService.js";
+import { autoFormatDates, formatToThai } from "../utils/dateFormatter.js";
 
 const getStreak = async (req, res) => {
   try {
@@ -18,7 +19,7 @@ const getStreak = async (req, res) => {
 
     res.status(200).json({
       success: true,
-      data: streak
+      data: autoFormatDates(streak, formatToThai)
     });
   } catch (err) {
     console.error("Error getStreak:", err);
@@ -35,7 +36,7 @@ const updateStreak = async (req, res) => {
     const streak = await streaksService.updateStreak(userId);
     res.status(200).json({
       success: true,
-      data: streak
+      data: autoFormatDates(streak, formatToThai)
     });
   } catch (err) {
     console.error("Error updateStreak:", err);

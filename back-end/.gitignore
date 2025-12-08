@@ -2,9 +2,13 @@ node_modules
 npm-debug.log*
 .env
 !.env.example
-.git
 src/generated/prisma/
-
+test-data-setup.js
 # Documentation files (ไม่ต้องการ commit)
 RANKING_CACHE_USAGE.md
 RANKING_CACHE_GUIDE.md
+DATE_FORMATTER_SERVICES_SUMMARY.md
+DATE_FORMATTER_UNUSED_FUNCTIONS.md
+DATE_FORMATTER_USAGE.md
+MANUAL_TEST_GUIDE.md
+TEST_RESULTS.md

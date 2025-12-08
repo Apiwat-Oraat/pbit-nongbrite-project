@@ -73,24 +73,38 @@ const GameService = {
       });
     } 
 
-    // 4. อัปเดต LastStage
-    await prisma.lastStage.upsert({
+    // 4. อัปเดต LastStage (เฉพาะเมื่อเล่น level ใหม่ ไม่นับการเล่นซ้ำ)
+    const existingLastStage = await prisma.lastStage.findUnique({
+      where: { userId: userId }
+    });
+
+    // อัปเดต LastStage เฉพาะเมื่อ:
+    // - ยังไม่มี LastStage (เล่นครั้งแรก)
+    // - เล่น level ใหม่ (levelId เปลี่ยน)
+    // - เล่น chapter ใหม่ (chapterId เปลี่ยน)
+    const shouldUpdateLastStage = !existingLastStage || 
+                                  existingLastStage.levelId !== levelId ||
+                                  existingLastStage.chapterId !== chapterId;
+
+    if (shouldUpdateLastStage) {
+      await prisma.lastStage.upsert({
         where: { userId: userId },
         update: {
-            chapterId: chapterId,
-            levelId: levelId,
-            score: score,
-            stars: stars,
-            updatedAt: new Date()
+          chapterId: chapterId,
+          levelId: levelId,
+          score: score,
+          stars: stars,
+          updatedAt: new Date()
         },
         create: {
-            userId: userId,
-            chapterId: chapterId,
-            levelId: levelId,
-            score: score,
-            stars: stars
+          userId: userId,
+          chapterId: chapterId,
+          levelId: levelId,
+          score: score,
+          stars: stars
         }
-    });
+      });
+    }
 
     // 5. อัปเดต Profile & Rank
     const aggregations = await prisma.levelCompletion.aggregate({
@@ -245,6 +259,48 @@ const GameService = {
             tierIcon: rankInfo.icon  
         };
     });
+  },
+
+  // =========================================
+  // ฟังก์ชันที่ 4: ดึงด่านล่าสุดที่เล่น (Last Stage)
+  // =========================================
+  async getLastStage(userId) {
+    const lastStage = await prisma.lastStage.findUnique({
+      where: { userId },
+      include: {
+        chapter: {
+          select: {
+            id: true,
+            title: true,
+            orderIndex: true
+          }
+        },
+        level: {
+          select: {
+            id: true,
+            number: true,
+            title: true,
+            maxScore: true,
+            maxStars: true,
+            difficulty: true
+          }
+        }
+      }
+    });
+
+    if (!lastStage) {
+      return null;
+    }
+
+    return {
+      chapterId: lastStage.chapterId,
+      levelId: lastStage.levelId,
+      score: lastStage.score,
+      stars: lastStage.stars,
+      updatedAt: lastStage.updatedAt,
+      chapter: lastStage.chapter,
+      level: lastStage.level
+    };
   }
 
 };
