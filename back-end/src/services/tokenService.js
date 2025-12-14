@@ -1,15 +1,24 @@
 import jwt from "jsonwebtoken";
 
+
+// console.log("---------------- CHECK ENV ----------------");
+// console.log("1. JWT_SECRET is:", process.env.JWT_SECRET);
+// console.log("2. Type is:", typeof process.env.JWT_SECRET);
+// console.log("3. All Env Keys:", Object.keys(process.env).filter(key => key.includes('JWT')));
+// console.log("-------------------------------------------");
+
+
+
 // ใช้ JWT_SECRET เดียวกันสำหรับทุก token type (หรือแยกเป็น 3 secrets สำหรับความปลอดภัยมากขึ้น)
-const JWT_SECRET = process.env.JWT_SECRET;
+// const JWT_SECRET = process.env.JWT_SECRET;
 
-if (!JWT_SECRET) {
-  console.warn('⚠️  Warning: JWT_SECRET is not set. Tokens will not work properly.');
-}
+// if (!JWT_SECRET) {
+//   console.warn('⚠️  Warning: JWT_SECRET is not set. Tokens will not work properly.');
+// }
 
-const ACCESS_TOKEN_SECRET = process.env.JWT_ACCESS_SECRET || JWT_SECRET;
-const REFRESH_TOKEN_SECRET = process.env.JWT_REFRESH_SECRET || JWT_SECRET;
-const REGISTER_TOKEN_SECRET = process.env.JWT_REGISTER_SECRET || JWT_SECRET;
+const ACCESS_TOKEN_SECRET = process.env.JWT_ACCESS_SECRET;
+const REFRESH_TOKEN_SECRET = process.env.JWT_REFRESH_SECRET;
+const REGISTER_TOKEN_SECRET = process.env.JWT_REGISTER_SECRET;
 
 const tokenService = {
   generateAccessToken: function (payload) {

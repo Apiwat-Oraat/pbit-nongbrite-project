@@ -1,6 +1,4 @@
-import { PrismaClient } from "@prisma/client";
-
-const prisma = new PrismaClient();
+import prisma from "../lib/prismaClient.js";
 
 // ค่าคงที่ (ถ้าอนาคตเปลี่ยนจาก 5 → 10 lives, ปรับตรงนี้)
 const MAX_LIVES = 5;

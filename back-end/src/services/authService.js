@@ -1,12 +1,12 @@
 
 import jwt from "jsonwebtoken";
 import bcrypt from "bcrypt";
-import { PrismaClient } from "@prisma/client";
 import tokenService from "./tokenService.js";
 import emailService from "./emailService.js";
 import crypto from "crypto";
-
+import { PrismaClient } from "@prisma/client";
 const prisma = new PrismaClient();
+
 
 
 

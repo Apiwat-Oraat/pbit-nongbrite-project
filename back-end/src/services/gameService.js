@@ -1,9 +1,9 @@
-import { PrismaClient } from "@prisma/client";
+// import { PrismaClient } from "@prisma/client";
 import { calculateRank, calculateLevel } from "../utils/rankSystem.js";
 import RankingCacheService from "./rankingCacheService.js";
 import streaksService from "./streaksService.js";
-
-const prisma = new PrismaClient(); 
+import prisma from "../lib/prismaClient.js"
+// const prisma = new PrismaClient(); 
 
 const GameService = {
 
