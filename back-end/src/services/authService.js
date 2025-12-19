@@ -4,8 +4,9 @@ import bcrypt from "bcrypt";
 import tokenService from "./tokenService.js";
 import emailService from "./emailService.js";
 import crypto from "crypto";
-import { PrismaClient } from "@prisma/client";
-const prisma = new PrismaClient();
+import prisma from "../lib/prismaClient.js"
+// import { PrismaClient } from "@prisma/client";
+// const prisma = new PrismaClient();
 
 
 
