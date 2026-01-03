@@ -23,36 +23,35 @@ const AuthService = {
     const match = await bcrypt.compare(password, user.password);
     if (!match) throw new Error("Invalid credentials");
 
-    // Generate tokens
+    // Generate token
     const payload = { userId: user.id, role: user.role };
     const accessToken = tokenService.generateAccessToken(payload);
-    const refreshToken = tokenService.generateRefreshToken(payload);
-
-    // Save refreshToken in DB
-    await prisma.user.update({
-      where: { id: user.id },
-      data: { refreshToken },
-    });
 
     return {
       accessToken,
-      refreshToken,
       user: {
         id: user.id,
         email: user.email,
         name: user.name,
         age: user.age,
         gender: user.gender,
-        profile: user.profile
+        profile: {
+          playerName: user.profile.playerName,
+          icon: user.profile.icon,
+          totalScore: user.profile.totalScore,
+          currentRank: user.profile.currentRank,
+          joinedDate: user.profile.joinedDate,
+          currentStreak: user.profile.currentStreak,
+          longestStreak: user.profile.longestStreak,
+          totalStars: user.profile.totalStars
+        }
       },
     };
   },
 
-  async logout(refreshToken) {
-    await prisma.user.updateMany({
-      where: { refreshToken: refreshToken },
-      data: { refreshToken: null }
-    })
+  async logout() {
+    // Logout logic - no refreshToken needed
+    return;
   },
 
   async registerStep1(email, password, confirmPassword) {
@@ -96,25 +95,6 @@ const AuthService = {
     };
   },
 
-  async refreshTokens(refreshToken) {
-    const payload = tokenService.verifyRefreshToken(refreshToken);
-
-    const user = await prisma.user.findUnique({ where: { id: payload.userId } });
-    if (!user || user.refreshToken !== refreshToken) {
-      throw new Error("Invalid or Expired Refresh Token");
-    }
-
-    const tokenPayload = { userId: user.id, role: user.role };
-    const accessToken = tokenService.generateAccessToken(tokenPayload);
-    const newRefreshToken = tokenService.generateRefreshToken(tokenPayload);
-
-    await prisma.user.update({
-      where: { id: user.id },
-      data: { refreshToken: newRefreshToken }
-    });
-
-    return { accessToken, refreshToken: newRefreshToken };
-  },
 
   async forgotPassword(email) {
     // 1. ค้นหา user

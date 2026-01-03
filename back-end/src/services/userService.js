@@ -3,13 +3,6 @@
 import prisma from "../lib/prismaClient.js"
 
 const userService = {
-  async updateRefreshToken(userId, refreshToken) {
-    return await prisma.user.update({
-      where: {id: userId},
-      data: {refreshToken},
-    });
-  },
-
   /**
    * ดึงข้อมูล profile ของ user
    * @param {number} userId - User ID

@@ -1,6 +1,5 @@
 import AuthService from "../services/authService.js";
 import tokenService from "../services/tokenService.js";
-import userService from "../services/userService.js";
 import { autoFormatDates, formatToThai } from "../utils/dateFormatter.js";
 
 const AuthController = {
@@ -9,20 +8,14 @@ const AuthController = {
       const { email, password } = req.body;
       const data = await AuthService.login(email, password);
 
-      // Refresh Token 7 วัน
-      res.cookie('refreshToken', data.refreshToken, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'strict',
-        maxAge: 7 * 24 * 60 * 60 * 1000
-      });
-
-      // Access Token 15 นาที
+      // Access Token
       res.cookie('accessToken', data.accessToken, {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
         sameSite: 'strict',
-        maxAge: 15 * 60 * 1000
+        // maxAge: 15 * 60 * 1000
+        maxAge: 30 * 24 * 60 * 60 * 1000
+
       });
 
       res.status(200).json({
@@ -41,10 +34,7 @@ const AuthController = {
 
   async logout(req, res) {
     try {
-      const refreshToken = req.cookies.refreshToken;
-      if (refreshToken) {
-        await AuthService.logout(refreshToken);
-      }
+      await AuthService.logout();
       const cookieOptions = {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
@@ -52,7 +42,6 @@ const AuthController = {
       };
 
       res.clearCookie('accessToken', cookieOptions);
-      res.clearCookie('refreshToken', cookieOptions);
       res.clearCookie('registerToken', cookieOptions);
 
       res.status(200).json({
@@ -60,9 +49,7 @@ const AuthController = {
         message: "Logged out successfully"
       });
     } catch (error) {
-
       res.clearCookie('accessToken');
-      res.clearCookie('refreshToken');
       res.status(200).json({ success: true, message: "Logged out (Local only)" });
     }
   },
@@ -104,31 +91,20 @@ const AuthController = {
       // 2. เรียก Service สร้าง User
       const newUser = await AuthService.registerStep2(registerToken, name, age, gender);
 
-      // 3. สร้าง login Token (Access/Refresh) ทันที เพื่อให้ User ใช้งานได้เลย
+      // 3. สร้าง login Token ทันที เพื่อให้ User ใช้งานได้เลย
       const payload = { userId: newUser.userId, role: 'USER' };
       const accessToken = tokenService.generateAccessToken(payload);
-      const refreshToken = tokenService.generateRefreshToken(payload);
-
-      // บันทึก Refresh Token ลง DB (เหมือนตอน Login)
-      await userService.updateRefreshToken(newUser.userId, refreshToken);
 
       // 4. ล้าง Cookie สมัครทิ้ง และใส่ Cookie ล็อกอินแทน
       res.clearCookie('registerToken');
 
-      // ใส่ Token จริง
-      res.cookie('refreshToken', refreshToken, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'strict',
-        maxAge: 7 * 24 * 60 * 60 * 1000
-      });
-
-      // 3. ฝัง Access Token (กุญแจห้อง - อยู่สั้น 15 นาที)
+      // ฝัง Access Token
       res.cookie('accessToken', accessToken, {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
         sameSite: 'strict',
-        maxAge: 15 * 60 * 1000
+        maxAge: 1 * 60 * 1000 // 1 นาทีสำหรับ test
+        // maxAge: 30 * 24 * 60 * 60 * 1000   // 30 วัน
       });
 
 
@@ -157,50 +133,6 @@ const AuthController = {
     }
   },
 
-  async refreshToken(req, res) {
-    try {
-      const refreshToken = req.cookies.refreshToken;
-      if (!refreshToken) {
-        return res.status(401).json({ 
-          success: false,
-          message: "No token provided" 
-        });
-      }
-
-      const { accessToken, refreshToken: newRefreshToken } = await AuthService.refreshTokens(refreshToken);
-
-      res.cookie('accessToken', accessToken, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'strict',
-        maxAge: 15 * 60 * 1000
-      });
-
-      if (newRefreshToken) {
-        res.cookie('refreshToken', newRefreshToken, {
-          httpOnly: true,
-          secure: process.env.NODE_ENV === 'production',
-          sameSite: 'strict',
-          maxAge: 7 * 24 * 60 * 60 * 1000
-        });
-      }
-
-      res.status(200).json({ 
-        success: true, 
-        message: "Token refreshed" 
-      });
-
-    } catch (err) {
-
-      console.error("Refresh Token Error:", err.message);
-      res.clearCookie('accessToken');
-      res.clearCookie('refreshToken');
-      res.status(403).json({ 
-        success: false,
-        message: "Invalid refresh token, please login again" 
-      });
-    }
-  },
 
   async forgotPassword(req, res) {
     const { email } = req.body;

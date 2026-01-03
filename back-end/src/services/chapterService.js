@@ -13,7 +13,7 @@ const chapterService = {
         title: true,
         desc: true,
         orderIndex: true,
-        createdAt: true,
+        // createdAt: true,
         levels: {
           where: { isActive: true },
           orderBy: { number: 'asc' },
@@ -21,17 +21,44 @@ const chapterService = {
             id: true,
             number: true,
             title: true,
-            maxScore: true,
+            // maxScore: true,
             maxStars: true,
-            difficulty: true
+            difficulty: true,
+            // เพิ่ม completions ถ้ามี userId
+            ...(userId && {
+              completions: {
+                where: { userId },
+                select: {
+                  bestStars: true
+                },
+                take: 1
+              }
+            })
           }
         }
       }
     });
 
-    // ถ้ามี userId ให้คำนวณ unlocked status
+    // Transform data เพื่อเพิ่ม earnedStars ถ้ามี userId
     if (userId) {
-      return await this.addUnlockedStatus(chapters, userId);
+      const transformedChapters = chapters.map(chapter => ({
+        ...chapter,
+        levels: chapter.levels.map(level => {
+          // ดึง earnedStars จาก completions
+          const earnedStars = level.completions?.[0]?.bestStars || 0;
+          
+          // สร้าง object ใหม่โดยไม่รวม completions
+          const { completions, ...levelWithoutCompletions } = level;
+          
+          return {
+            ...levelWithoutCompletions,
+            earnedStars
+          };
+        })
+      }));
+      
+      // เพิ่ม isUnlocked status
+      return await this.addUnlockedStatus(transformedChapters, userId);
     }
 
     return chapters;
@@ -132,6 +159,7 @@ const chapterService = {
         return {
           ...level,
           isUnlocked
+          // earnedStars และ maxStars จะถูกเก็บไว้โดย spread operator (...level)
         };
       });
 

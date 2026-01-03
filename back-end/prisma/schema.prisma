@@ -16,7 +16,6 @@ model User {
   gender       Gender?
   role         Role     @default(USER)
   isVerified   Boolean  @default(false)
-  refreshToken String?
   displayName  String?
   avatar       String?
   isPublic     Boolean  @default(true)
@@ -31,7 +30,6 @@ model User {
   lives            Life?
   profile          Profile?
   rankingCache     RankingCache?
-  resetTokens      ResetToken[]
   streaks          Streak[]
   unlockedIcons    UserIcon[]
 }
@@ -226,18 +224,6 @@ model RankingCache {
 
   @@index([rank])
   @@index([points(sort: Desc)])
-}
-
-model ResetToken {
-  id        Int      @id @default(autoincrement())
-  userId    Int
-  pin       String
-  expiresAt DateTime
-  createdAt DateTime @default(now())
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@unique([userId, pin])
 }
 
 enum Gender {
