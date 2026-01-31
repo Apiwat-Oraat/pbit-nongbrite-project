@@ -10,12 +10,55 @@ const RankingCacheService = {
    * อัปเดต cache ของ user หนึ่งคน
    * เรียกใช้เมื่อ user submit level หรือคะแนนเปลี่ยน
    */
-  async updateUserCache(userId, totalScore) {
-    // คำนวณ rank จาก totalScore
-    // Rank = จำนวนคนที่มีคะแนนมากกว่า + 1
+  async updateUserCache(userId, totalScore, totalStars = null, updatedAt = null) {
+    // คำนวณ rank ให้ตรงกับ leaderboard logic
+    // Leaderboard เรียงตาม: totalScore DESC, totalStars DESC, updatedAt ASC
+    
+    // ดึง profile ของ user นี้เพื่อเอา totalStars และ updatedAt (ถ้ายังไม่ได้ส่งมา)
+    let userTotalStars = totalStars;
+    let userUpdatedAt = updatedAt;
+    
+    if (userTotalStars === null || userUpdatedAt === null) {
+      const userProfile = await prisma.profile.findUnique({
+        where: { userId },
+        select: {
+          totalStars: true,
+          updatedAt: true
+        }
+      });
+
+      if (!userProfile) {
+        throw new Error("Profile not found");
+      }
+
+      if (userTotalStars === null) {
+        userTotalStars = userProfile.totalStars;
+      }
+      if (userUpdatedAt === null) {
+        userUpdatedAt = userProfile.updatedAt;
+      }
+    }
+
+    // นับคนที่อยู่เหนือ user นี้ตาม leaderboard logic
+    // คนที่อยู่เหนือ = totalScore มากกว่า หรือ totalScore เท่ากันแต่ totalStars มากกว่า หรือ totalScore และ totalStars เท่ากันแต่ updatedAt ก่อนหน้า
     const rank = await prisma.profile.count({
       where: {
-        totalScore: { gt: totalScore }
+        OR: [
+          { totalScore: { gt: totalScore } },
+          {
+            AND: [
+              { totalScore: totalScore },
+              { totalStars: { gt: userTotalStars } }
+            ]
+          },
+          {
+            AND: [
+              { totalScore: totalScore },
+              { totalStars: userTotalStars },
+              { updatedAt: { lt: userUpdatedAt } }
+            ]
+          }
+        ]
       }
     }) + 1;
 
@@ -153,12 +196,18 @@ const RankingCacheService = {
   async rebuildAllCache() {
     console.log('🔄 Starting to rebuild ranking cache...');
 
-    // ดึง profiles ทั้งหมดเรียงตามคะแนน
+    // ดึง profiles ทั้งหมดพร้อม totalStars และ updatedAt
     const profiles = await prisma.profile.findMany({
-      orderBy: { totalScore: 'desc' },
+      orderBy: [
+        { totalScore: 'desc' },
+        { totalStars: 'desc' },
+        { updatedAt: 'asc' }
+      ],
       select: {
         userId: true,
-        totalScore: true
+        totalScore: true,
+        totalStars: true,
+        updatedAt: true
       }
     });
 
@@ -171,22 +220,10 @@ const RankingCacheService = {
     for (let i = 0; i < profiles.length; i += batchSize) {
       const batch = profiles.slice(i, i + batchSize);
       
-      const updatePromises = batch.map((profile, index) => {
-        const rank = i + index + 1; // Rank = position ใน array + 1
-        return prisma.rankingCache.upsert({
-          where: { userId: profile.userId },
-          update: {
-            rank,
-            points: profile.totalScore,
-            lastUpdated: new Date()
-          },
-          create: {
-            userId: profile.userId,
-            rank,
-            points: profile.totalScore
-          }
-        });
-      });
+      // ใช้ updateUserCache เพื่อคำนวณ rank ที่ถูกต้อง
+      const updatePromises = batch.map(profile => 
+        this.updateUserCache(profile.userId, profile.totalScore, profile.totalStars, profile.updatedAt)
+      );
 
       await Promise.all(updatePromises);
       processed += batch.length;

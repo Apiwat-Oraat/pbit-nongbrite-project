@@ -1,6 +1,7 @@
 // import { PrismaClient } from "@prisma/client";
 // const prisma = new PrismaClient();
 import prisma from "../lib/prismaClient.js"
+import RankingCacheService from "./rankingCacheService.js"
 
 const userService = {
   /**
@@ -12,12 +13,51 @@ const userService = {
     const user = await prisma.user.findUnique({
       where: { id: userId },
       include: {
-        profile: true
+        profile: true,
+        rankingCache: {
+          select: {
+            rank: true
+          }
+        }
       }
     });
 
     if (!user) {
       throw new Error("User not found");
+    }
+
+    // Sync currentRank จาก RankingCache (realtime)
+    if (user.rankingCache && user.profile) {
+      const cacheRank = user.rankingCache.rank;
+      
+      // อัปเดต Profile.currentRank ถ้าไม่ตรงกับ RankingCache
+      if (user.profile.currentRank !== cacheRank) {
+        await prisma.profile.update({
+          where: { userId },
+          data: { currentRank: cacheRank }
+        });
+        user.profile.currentRank = cacheRank;
+      }
+    } else if (user.profile && !user.rankingCache) {
+      // ถ้ายังไม่มี RankingCache ให้สร้างใหม่
+      try {
+        const cacheResult = await RankingCacheService.updateUserCache(
+          userId, 
+          user.profile.totalScore,
+          user.profile.totalStars,
+          user.profile.updatedAt
+        );
+        
+        // อัปเดต Profile.currentRank
+        await prisma.profile.update({
+          where: { userId },
+          data: { currentRank: cacheResult.rank }
+        });
+        user.profile.currentRank = cacheResult.rank;
+      } catch (err) {
+        console.error('Failed to sync ranking:', err);
+        // ไม่ throw error เพื่อไม่ให้กระทบการดึง profile
+      }
     }
 
     return user;

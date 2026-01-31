@@ -1,5 +1,5 @@
 // import { PrismaClient } from "@prisma/client";
-import { calculateRank, calculateLevel } from "../utils/rankSystem.js";
+import { calculateRank } from "../utils/rankSystem.js";
 import RankingCacheService from "./rankingCacheService.js";
 import streaksService from "./streaksService.js";
 import prisma from "../lib/prismaClient.js"
@@ -119,28 +119,76 @@ const GameService = {
     const totalStars = aggregations._sum.bestStars || 0;
 
     const newRankInfo = calculateRank(totalScore); 
-    const newLevel = calculateLevel(totalScore);
 
-    // ดึงคะแนนเก่าก่อนอัปเดต (เพื่อ update cache)
+    // ดึงข้อมูลเก่าก่อนอัปเดต (เพื่อ update cache)
     const oldProfile = await prisma.profile.findUnique({
       where: { userId: userId },
-      select: { totalScore: true }
+      select: { 
+        totalScore: true,
+        totalStars: true,
+        updatedAt: true
+      }
     });
     const oldScore = oldProfile?.totalScore || 0;
+    const oldTotalStars = oldProfile?.totalStars || 0;
+    const oldUpdatedAt = oldProfile?.updatedAt || new Date();
+
+    // ใช้ rank จาก RankingCache แทนการคำนวณใหม่
+    // ส่ง totalStars และ updatedAt เก่าไปด้วย (ก่อนอัปเดต) เพื่อคำนวณ rank ที่ถูกต้อง
+    let rankingPosition = null;
+    if (totalScore !== oldScore || totalStars !== oldTotalStars) {
+      // อัปเดต cache และดึง rank (ใช้ updatedAt เก่าก่อนอัปเดต)
+      try {
+        const cacheResult = await RankingCacheService.updateUserCache(userId, totalScore, totalStars, oldUpdatedAt);
+        rankingPosition = cacheResult.rank;
+      } catch (err) {
+        console.error('Failed to update ranking cache:', err);
+        // Fallback: คำนวณ rank เองถ้า cache fail
+        rankingPosition = await prisma.profile.count({
+          where: {
+            totalScore: { gt: totalScore }
+          }
+        }) + 1;
+      }
+    } else {
+      // ถ้าคะแนนไม่เปลี่ยน ให้ดึง rank จาก cache ที่มีอยู่
+      const existingCache = await prisma.rankingCache.findUnique({
+        where: { userId },
+        select: { rank: true }
+      });
+      
+      if (existingCache) {
+        rankingPosition = existingCache.rank;
+      } else {
+        // ถ้ายังไม่มี cache ให้สร้างใหม่
+        try {
+          const cacheResult = await RankingCacheService.updateUserCache(userId, totalScore, totalStars, oldUpdatedAt);
+          rankingPosition = cacheResult.rank;
+        } catch (err) {
+          console.error('Failed to create ranking cache:', err);
+          // Fallback: คำนวณ rank เองถ้า cache fail
+          rankingPosition = await prisma.profile.count({
+            where: {
+              totalScore: { gt: totalScore }
+            }
+          }) + 1;
+        }
+      }
+    }
 
     await prisma.profile.upsert({
         where: { userId: userId },
         update: {
             totalScore: totalScore,
             totalStars: totalStars,
-            currentRank: newLevel,    
+            currentRank: rankingPosition,    
             updatedAt: new Date()
         },
         create: {
             userId: userId,
             totalScore: totalScore,
             totalStars: totalStars,
-            currentRank: newLevel,
+            currentRank: rankingPosition,
         }
     });
 
@@ -152,27 +200,12 @@ const GameService = {
         // ไม่ throw error เพื่อไม่ให้กระทบ flow หลัก
       });
 
-    // 7. อัปเดต RankingCache (async - ไม่ต้องรอ)
-    // ถ้าคะแนนเปลี่ยน ให้อัปเดต cache ของ user นี้และคนที่ได้รับผลกระทบ
-    if (totalScore !== oldScore) {
-      RankingCacheService.updateUserCache(userId, totalScore)
-        .then(() => {
-          // อัปเดต rank ของคนอื่นที่ได้รับผลกระทบ (optional - อาจช้า)
-          // RankingCacheService.updateAffectedRanks(totalScore, oldScore);
-        })
-        .catch(err => {
-          console.error('Failed to update ranking cache:', err);
-          // ไม่ throw error เพื่อไม่ให้กระทบ flow หลัก
-        });
-    }
-
     return { 
         success: true,
         earnedScore: score,
         totalScore: totalScore,
         rank: newRankInfo.name,
-        rankLabel: newRankInfo.label,
-        playerLevel: newLevel
+        rankLabel: newRankInfo.label
     };
   },
 
