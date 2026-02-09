@@ -15,15 +15,10 @@ model User {
   age          Int?
   gender       Gender?
   role         Role     @default(USER)
-  isVerified   Boolean  @default(false)
-  displayName  String?
-  avatar       String?
-  isPublic     Boolean  @default(true)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
   // relations
-  achievements     AchievementUnlock[]
   lastStage        LastStage?
   levelCompletions LevelCompletion[]
   gamePlayHistory  GamePlayHistory[]
@@ -31,7 +26,6 @@ model User {
   profile          Profile?
   rankingCache     RankingCache?
   streaks          Streak[]
-  unlockedIcons    UserIcon[]
 }
 
 model Streak {
@@ -114,7 +108,6 @@ model LevelCompletion {
   bestScore   Int      @default(0) // คะแนนสูงสุด
   bestStars   Int      @default(0) // ดาวสูงสุด
   bestTime    Int      @default(999999)
-  metadata    Json?
 
   level Level @relation(fields: [levelId], references: [id], onDelete: Cascade)
   user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -131,7 +124,6 @@ model GamePlayHistory {
   stars    Int
   playTime Int
   playedAt DateTime @default(now())
-  metadata Json?
 
   user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
   level Level @relation(fields: [levelId], references: [id], onDelete: Cascade)
@@ -139,31 +131,7 @@ model GamePlayHistory {
   @@index([userId, levelId, playedAt(sort: Desc)])
 }
 
-model Achievement {
-  id         Int                 @id @default(autoincrement())
-  title      Json
-  desc       Json
-  condition  String
-  icon       String?
-  orderIndex Int                 @default(0)
-  isActive   Boolean             @default(true)
-  createdAt  DateTime            @default(now())
-  unlocks    AchievementUnlock[]
-}
 
-model AchievementUnlock {
-  id            Int      @id @default(autoincrement())
-  userId        Int
-  achievementId Int
-  unlockedAt    DateTime @default(now())
-  isShowInRank  Boolean  @default(true)
-
-  achievement Achievement @relation(fields: [achievementId], references: [id], onDelete: Cascade)
-  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@unique([userId, achievementId])
-  @@index([userId, unlockedAt(sort: Desc)])
-}
 
 model Profile {
   id              Int      @id @default(autoincrement())
@@ -172,45 +140,13 @@ model Profile {
   icon            String?
   totalScore      Int      @default(0) // aggregate จาก LevelCompletion.bestScore
   currentRank     Int?
-  joinedDate      DateTime @default(now())
-  currentStreak   Int      @default(0)
-  longestStreak   Int      @default(0)
   totalStars      Int      @default(0) // aggregate จาก LevelCompletion.bestStars
-  totalMaxStars   Int      @default(0)
-  isProfilePublic Boolean  @default(true)
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([totalScore(sort: Desc)])
-  @@index([currentStreak(sort: Desc)])
-}
-
-model Icon {
-  id              Int        @id @default(autoincrement())
-  name            String     @unique
-  imageUrl        String
-  category        String?
-  isDefault       Boolean    @default(false)
-  unlockCondition String?
-  orderIndex      Int        @default(0)
-  isActive        Boolean    @default(true)
-  createdAt       DateTime   @default(now())
-  unlockedBy      UserIcon[]
-}
-
-model UserIcon {
-  id         Int      @id @default(autoincrement())
-  userId     Int
-  iconId     Int
-  unlockedAt DateTime @default(now())
-
-  icon Icon @relation(fields: [iconId], references: [id], onDelete: Cascade)
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@unique([userId, iconId])
-  @@index([userId])
 }
 
 model RankingCache {

@@ -71,7 +71,7 @@ const GameService = {
           bestTime: newBestTime
         }
       });
-    } 
+    }
 
     // 4. อัปเดต LastStage (เฉพาะเมื่อเล่น level ใหม่ ไม่นับการเล่นซ้ำ)
     const existingLastStage = await prisma.lastStage.findUnique({
@@ -82,9 +82,9 @@ const GameService = {
     // - ยังไม่มี LastStage (เล่นครั้งแรก)
     // - เล่น level ใหม่ (levelId เปลี่ยน)
     // - เล่น chapter ใหม่ (chapterId เปลี่ยน)
-    const shouldUpdateLastStage = !existingLastStage || 
-                                  existingLastStage.levelId !== levelId ||
-                                  existingLastStage.chapterId !== chapterId;
+    const shouldUpdateLastStage = !existingLastStage ||
+      existingLastStage.levelId !== levelId ||
+      existingLastStage.chapterId !== chapterId;
 
     if (shouldUpdateLastStage) {
       await prisma.lastStage.upsert({
@@ -108,22 +108,22 @@ const GameService = {
 
     // 5. อัปเดต Profile & Rank
     const aggregations = await prisma.levelCompletion.aggregate({
-        _sum: { 
-            bestScore: true,
-            bestStars: true 
-        },
-        where: { userId: userId }
+      _sum: {
+        bestScore: true,
+        bestStars: true
+      },
+      where: { userId: userId }
     });
 
     const totalScore = aggregations._sum.bestScore || 0;
     const totalStars = aggregations._sum.bestStars || 0;
 
-    const newRankInfo = calculateRank(totalScore); 
+    const newRankInfo = calculateRank(totalScore);
 
     // ดึงข้อมูลเก่าก่อนอัปเดต (เพื่อ update cache)
     const oldProfile = await prisma.profile.findUnique({
       where: { userId: userId },
-      select: { 
+      select: {
         totalScore: true,
         totalStars: true,
         updatedAt: true
@@ -156,7 +156,7 @@ const GameService = {
         where: { userId },
         select: { rank: true }
       });
-      
+
       if (existingCache) {
         rankingPosition = existingCache.rank;
       } else {
@@ -177,19 +177,19 @@ const GameService = {
     }
 
     await prisma.profile.upsert({
-        where: { userId: userId },
-        update: {
-            totalScore: totalScore,
-            totalStars: totalStars,
-            currentRank: rankingPosition,    
-            updatedAt: new Date()
-        },
-        create: {
-            userId: userId,
-            totalScore: totalScore,
-            totalStars: totalStars,
-            currentRank: rankingPosition,
-        }
+      where: { userId: userId },
+      update: {
+        totalScore: totalScore,
+        totalStars: totalStars,
+        currentRank: rankingPosition,
+        updatedAt: new Date()
+      },
+      create: {
+        userId: userId,
+        totalScore: totalScore,
+        totalStars: totalStars,
+        currentRank: rankingPosition,
+      }
     });
 
     // 6. อัปเดต Streak (async - ไม่ต้องรอ)
@@ -200,12 +200,12 @@ const GameService = {
         // ไม่ throw error เพื่อไม่ให้กระทบ flow หลัก
       });
 
-    return { 
-        success: true,
-        earnedScore: score,
-        totalScore: totalScore,
-        rank: newRankInfo.name,
-        rankLabel: newRankInfo.label
+    return {
+      success: true,
+      earnedScore: score,
+      totalScore: totalScore,
+      rank: newRankInfo.name,
+      rankLabel: newRankInfo.label
     };
   },
 
@@ -217,7 +217,7 @@ const GameService = {
     if (useCache) {
       try {
         const cachedLeaderboard = await RankingCacheService.getLeaderboardFromCache(10);
-        
+
         // ดึง totalStars จาก Profile (เพราะ RankingCache ไม่มี)
         const userIds = cachedLeaderboard.map(p => p.userId);
         const profiles = await prisma.profile.findMany({
@@ -239,13 +239,13 @@ const GameService = {
             userId: player.userId,
             name: player.name,
             avatar: player.avatar,
-            
+
             totalScore: player.totalScore,
             totalStars: profile?.totalStars || 0,
-            
-            tier: rankInfo.name,     
+
+            tier: rankInfo.name,
             tierLabel: rankInfo.label,
-            tierIcon: rankInfo.icon  
+            tierIcon: rankInfo.icon
           };
         });
       } catch (error) {
@@ -257,40 +257,38 @@ const GameService = {
 
     // Fallback: Query จาก Profile โดยตรง (ใช้เมื่อ cache ไม่พร้อม)
     const leaderboard = await prisma.profile.findMany({
-        take: 10,
-        orderBy: [
-            { totalScore: 'desc' },   
-            { totalStars: 'desc' },   
-            { updatedAt: 'asc' }      
-        ],
-        include: {
-            user: {
-                select: {
-                    id: true,
-                    name: true,
-                    avatar: true,
-                    displayName: true
-                }
-            }
+      take: 10,
+      orderBy: [
+        { totalScore: 'desc' },
+        { totalStars: 'desc' },
+        { updatedAt: 'asc' }
+      ],
+      include: {
+        user: {
+          select: {
+            id: true,
+            name: true,
+          }
         }
+      }
     });
 
     return leaderboard.map((player, index) => {
-        const rankInfo = calculateRank(player.totalScore);
+      const rankInfo = calculateRank(player.totalScore);
 
-        return {
-            rank: index + 1,
-            userId: player.userId,
-            name: player.user.displayName || player.user.name || "Unknown Hero",
-            avatar: player.user.avatar,
-            
-            totalScore: player.totalScore,
-            totalStars: player.totalStars,
-            
-            tier: rankInfo.name,     
-            tierLabel: rankInfo.label,
-            tierIcon: rankInfo.icon  
-        };
+      return {
+        rank: index + 1,
+        userId: player.userId,
+        name: player.playerName || player.user.name || "Unknown Hero",
+        icon: player.icon,
+
+        totalScore: player.totalScore,
+        totalStars: player.totalStars,
+
+        tier: rankInfo.name,
+        tierLabel: rankInfo.label,
+        tierIcon: rankInfo.icon
+      };
     });
   },
 

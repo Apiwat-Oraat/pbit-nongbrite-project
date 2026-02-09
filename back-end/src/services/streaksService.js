@@ -54,7 +54,7 @@ async function updateStreak(userId) {
         // ข้ามวัน → reset streak
         current = 1;
       }
-      
+
       longest = Math.max(current, streak.longest);
 
       // อัปเดต Streak table
@@ -70,19 +70,19 @@ async function updateStreak(userId) {
   }
 
   // Sync กับ Profile.currentStreak และ Profile.longestStreak
-  await prisma.profile.upsert({
-    where: { userId },
-    update: {
-      currentStreak: current,
-      longestStreak: longest,
-      updatedAt: new Date()
-    },
-    create: {
-      userId,
-      currentStreak: current,
-      longestStreak: longest
-    }
-  });
+  // await prisma.profile.upsert({
+  //   where: { userId },
+  //   update: {
+  //     currentStreak: current,
+  //     longestStreak: longest,
+  //     updatedAt: new Date()
+  //   },
+  //   create: {
+  //     userId,
+  //     currentStreak: current,
+  //     longestStreak: longest
+  //   }
+  // });
 
   return streak;
 }

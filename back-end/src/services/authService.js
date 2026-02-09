@@ -15,7 +15,7 @@ const AuthService = {
   async login(email, password) {
     const user = await prisma.user.findUnique({
       where: { email },
-      include: { profile: true },
+      include: { profile: true, streaks: true },
     });
 
     if (!user) throw new Error("Invalid credentials");
@@ -35,15 +35,17 @@ const AuthService = {
         name: user.name,
         age: user.age,
         gender: user.gender,
+        createdAt: user.createdAt,
         profile: {
           playerName: user.profile.playerName,
           icon: user.profile.icon,
           totalScore: user.profile.totalScore,
           currentRank: user.profile.currentRank,
-          joinedDate: user.profile.joinedDate,
-          currentStreak: user.profile.currentStreak,
-          longestStreak: user.profile.longestStreak,
           totalStars: user.profile.totalStars
+        },
+        streaks: {
+          currentStreak: user.streaks.current,
+          longestStreak: user.streaks.longest
         }
       },
     };
