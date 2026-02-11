@@ -64,7 +64,7 @@ const AuthController = {
       res.cookie('registerToken', registerToken, {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
-        sameSite: 'lax',
+        sameSite: 'none',
         maxAge: 15 * 60 * 1000 // 15 นาที
       });
 
