@@ -12,7 +12,7 @@ const AuthController = {
       res.cookie('accessToken', data.accessToken, {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
-        sameSite: 'strict',
+        sameSite: 'none', //ตั่งเป็น none เพื่อทำให้สามารถส่ง cookies ข้าม domain ได้
         // maxAge: 15 * 60 * 1000
         maxAge: 30 * 24 * 60 * 60 * 1000
 
@@ -38,7 +38,7 @@ const AuthController = {
       const cookieOptions = {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
-        sameSite: 'strict'
+        sameSite: 'none'
       };
 
       res.clearCookie('accessToken', cookieOptions);
@@ -102,7 +102,7 @@ const AuthController = {
       res.cookie('accessToken', accessToken, {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
-        sameSite: 'strict',
+        sameSite: 'none',
         maxAge: 1 * 60 * 1000 // 1 นาทีสำหรับ test
         // maxAge: 30 * 24 * 60 * 60 * 1000   // 30 วัน
       });
