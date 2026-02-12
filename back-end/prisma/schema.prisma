@@ -8,22 +8,28 @@ datasource db {
 }
 
 model User {
-  id               Int               @id @default(autoincrement())
-  email            String            @unique
-  password         String
-  name             String?
-  age              Int?
-  gender           Gender?
-  role             Role              @default(USER)
-  createdAt        DateTime          @default(now())
-  updatedAt        DateTime          @updatedAt
-  gamePlayHistory  GamePlayHistory[]
+  id           Int      @id @default(autoincrement())
+  email        String   @unique
+  password     String
+  name         String?
+  age          Int?
+  gender       Gender?
+
+  pin          String?
+  expiresAt    DateTime?
+
+  role         Role     @default(USER)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  // relations
   lastStage        LastStage?
   levelCompletions LevelCompletion[]
+  gamePlayHistory  GamePlayHistory[]
   lives            Life?
   profile          Profile?
   rankingCache     RankingCache?
-  streaks          Streak?
+  streaks          Streak[]
 }
 
 model Streak {
@@ -54,38 +60,41 @@ model LastStage {
   updatedAt DateTime @updatedAt
   score     Int      @default(0)
   stars     Int      @default(0)
-  chapter   Chapter  @relation(fields: [chapterId], references: [id], onDelete: Cascade)
-  level     Level    @relation(fields: [levelId], references: [id], onDelete: Cascade)
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  chapter Chapter @relation(fields: [chapterId], references: [id], onDelete: Cascade)
+  level   Level   @relation(fields: [levelId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model Chapter {
-  id         Int         @id @default(autoincrement())
-  orderIndex Int
-  createdAt  DateTime    @default(now())
+  id         Int      @id @default(autoincrement())
   title      Json
   desc       Json
   images     Json
-  lastStages LastStage[]
+  orderIndex Int
+  createdAt  DateTime @default(now())
+
   levels     Level[]
+  lastStages LastStage[]
 }
 
 model Level {
-  id          Int               @id @default(autoincrement())
-  chapterId   Int
-  number      Int
-  difficulty  Int               @default(1)
-  maxStars    Int               @default(3)
-  maxScore    Int               @default(100)
-  isActive    Boolean           @default(true)
-  createdAt   DateTime          @default(now())
-  updatedAt   DateTime          @updatedAt
-  title       Json
-  desc        Json?
-  gameHistory GamePlayHistory[]
-  lastStages  LastStage[]
+  id         Int      @id @default(autoincrement())
+  chapterId  Int
+  number     Int
+  title      Json
+  desc       Json?
+  difficulty Int      @default(1)
+  maxStars   Int      @default(3)
+  maxScore   Int      @default(100)
+  isActive   Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
   chapter     Chapter           @relation(fields: [chapterId], references: [id], onDelete: Cascade)
   completions LevelCompletion[]
+  gameHistory GamePlayHistory[]
+  lastStages  LastStage[]
 
   @@unique([chapterId, number])
   @@index([chapterId])
@@ -95,16 +104,17 @@ model LevelCompletion {
   id          Int      @id @default(autoincrement())
   userId      Int
   levelId     Int
-  score       Int      @default(0)
-  stars       Int      @default(0)
+  score       Int      @default(0) // คะแนนล่าสุด
+  stars       Int      @default(0) // ดาวล่าสุด
+  time        Int      @default(0) // ดาวล่าสุด
   completedAt DateTime @default(now())
   attempts    Int      @default(1)
-  bestScore   Int      @default(0)
-  bestStars   Int      @default(0)
-  time        Int      @default(0)
+  bestScore   Int      @default(0) // คะแนนสูงสุด
+  bestStars   Int      @default(0) // ดาวสูงสุด
   bestTime    Int      @default(999999)
-  level       Level    @relation(fields: [levelId], references: [id], onDelete: Cascade)
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  level Level @relation(fields: [levelId], references: [id], onDelete: Cascade)
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, levelId])
   @@index([userId, completedAt(sort: Desc)])
@@ -116,25 +126,29 @@ model GamePlayHistory {
   levelId  Int
   score    Int
   stars    Int
-  playedAt DateTime @default(now())
   playTime Int
-  level    Level    @relation(fields: [levelId], references: [id], onDelete: Cascade)
-  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  playedAt DateTime @default(now())
+
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  level Level @relation(fields: [levelId], references: [id], onDelete: Cascade)
 
   @@index([userId, levelId, playedAt(sort: Desc)])
 }
 
+
+
 model Profile {
-  id          Int      @id @default(autoincrement())
-  userId      Int      @unique
-  playerName  String?
-  icon        String?
-  totalScore  Int      @default(0)
-  currentRank Int?
-  totalStars  Int      @default(0)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id              Int      @id @default(autoincrement())
+  userId          Int      @unique
+  playerName      String?
+  icon            String?
+  totalScore      Int      @default(0) // aggregate จาก LevelCompletion.bestScore
+  currentRank     Int?
+  totalStars      Int      @default(0) // aggregate จาก LevelCompletion.bestStars
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([totalScore(sort: Desc)])
 }
@@ -145,7 +159,8 @@ model RankingCache {
   rank        Int
   points      Int
   lastUpdated DateTime @updatedAt
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([rank])
   @@index([points(sort: Desc)])
