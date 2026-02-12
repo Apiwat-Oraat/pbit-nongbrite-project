@@ -15,8 +15,8 @@ model User {
   age          Int?
   gender       Gender?
 
-  pin          String?
-  expiresAt    DateTime?
+  resetPin     String?
+  resetExpire  DateTime?
 
   role         Role     @default(USER)
   createdAt    DateTime @default(now())
