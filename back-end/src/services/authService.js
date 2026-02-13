@@ -106,22 +106,21 @@ const AuthService = {
       throw new Error("Email not found in our system");
     }
 
-    const pin = crypto.randomInt(100000, 999999).toString();
-    const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 นาที
+    const resetPin = crypto.randomInt(100000, 999999).toString();
+    const hashedPin = await bcrypt.hash(resetPin, 10);
+    const resetExpire = new Date(Date.now() + 10 * 60 * 1000); // 10 นาที
 
     try {
-      await prisma.$transaction([
-        prisma.resetToken.deleteMany({ where: { userId: user.id } }),
-        prisma.resetToken.create({
-          data: {
-            userId: user.id,
-            pin,
-            expiresAt
-          }
-        })
-      ]);
 
-      await emailService.sendResetPinEmail(email, pin);
+      await prisma.user.update({
+        where: { id: user.id },
+        data: {
+          resetPin: hashedPin,
+          resetExpire
+        }
+      });
+
+      await emailService.sendResetPinEmail(email, resetPin);
     } catch (error) {
       console.error("Forgot Password Error:", error);
 
@@ -132,31 +131,45 @@ const AuthService = {
   },
 
 
-  async resetPassword(email, pin, newPassword) {
-    const user = await prisma.user.findUnique({ where: { email } });
-    if (!user) throw new Error("User not found");
+  async resetPassword(email, resetPin, newPassword) {
 
-    const resetToken = await prisma.resetToken.findFirst({
-      where: {
-        userId: user.id,
-        pin,
-        expiresAt: { gt: new Date() }
-      },
+    const user = await prisma.user.findUnique({
+      where: { email }
     });
 
-    if (!resetToken || resetToken.expiresAt < new Date()) {
-      throw new Error("Invalid or expired PIN");
+    if (!user) {
+      throw new Error("User not found");
+    }
+
+    if (!user.resetPin || !user.resetExpire) {
+      throw new Error("No reset request");
+    }
+
+    if (new Date() > user.expiresAt) {
+      throw new Error("PIN expired");
+    }
+
+    const isMatch = await bcrypt.compare(resetPin, user.resetPin);
+
+    if (!isMatch) {
+      throw new Error("Invalid PIN");
     }
 
     const hashedPassword = await bcrypt.hash(newPassword, 10);
+
     await prisma.user.update({
-      where: { id: user.id },
-      data: { password: hashedPassword }
+      where: {id: user.id},
+      data: {
+        password: hashedPassword,
+        resetPin: null,
+        resetExpire: null
+      }
     });
 
-    await prisma.resetToken.deleteMany({
-      where: { userId: user.id }
-    });
+    return {
+      success: true,
+      message: "Password reset success"
+    }
   }
 
 
