@@ -5,6 +5,7 @@ import tokenService from "./tokenService.js";
 import emailService from "./emailService.js";
 import crypto from "crypto";
 import prisma from "../lib/prismaClient.js"
+import { platform } from "os";
 // import { PrismaClient } from "@prisma/client";
 // const prisma = new PrismaClient();
 
@@ -12,19 +13,20 @@ import prisma from "../lib/prismaClient.js"
 
 
 const AuthService = {
-  async login(email, password) {
+  async login(username, password) {
+
     const user = await prisma.user.findUnique({
-      where: { email },
+      where: { username },
       include: { profile: true, streaks: true },
     });
 
-    if (!user) throw new Error("Invalid credentials");
+    if (!user) throw new Error("User not found");
 
     const match = await bcrypt.compare(password, user.password);
-    if (!match) throw new Error("Invalid credentials");
+    if (!match) throw new Error("Invalid password");
 
     // Generate token
-    const payload = { userId: user.id, role: user.role };
+    const payload = { userId: user.id, username: user.username, role: user.role };
     const accessToken = tokenService.generateAccessToken(payload);
 
     return {
@@ -56,16 +58,36 @@ const AuthService = {
     return;
   },
 
-  async registerStep1(email, password, confirmPassword) {
-    if (password !== confirmPassword) throw new Error("Passwords do not match");
+  async registerStep1(username, email, password, confirmPassword) {
 
-    const existingUser = await prisma.user.findUnique({ where: { email } });
-    if (existingUser) throw new Error("Email already exists");
+    if (password !== confirmPassword) {
+      throw new Error("Passwords do not match");
+    }
 
-    const hashedPassword = await bcrypt.hash(password, 10);
+    const existUsername = await prisma.user.findUnique({
+      where: { username }
+    });
 
-    // สร้าง registration token เก็บ email + passwordHash (อายุสั้น)
-    const token = tokenService.generateRegisterToken({ email, password: hashedPassword }, "15m");
+    if (existUsername) {
+      throw new Error("Username already exists");
+    }
+
+    const existEmail = await prisma.user.findUnique({
+      where: { email }
+    });
+
+    if (existEmail) {
+      throw new Error("Email already exists");
+    }
+
+    const hash = await bcrypt.hash(password, 10);
+
+    const token = tokenService.generateRegisterToken({
+      username,
+      email,
+      password: hash
+    }, "15m");
+
 
     return token;
   },
@@ -75,6 +97,7 @@ const AuthService = {
 
     const newUser = await prisma.user.create({
       data: {
+        username: payload.username,
         email: payload.email,
         password: payload.password,
         name,
@@ -89,6 +112,7 @@ const AuthService = {
 
     return {
       userId: newUser.id,
+      username: newUser.username,
       email: newUser.email,
       name: newUser.name,
       age: newUser.age,
@@ -158,7 +182,7 @@ const AuthService = {
     const hashedPassword = await bcrypt.hash(newPassword, 10);
 
     await prisma.user.update({
-      where: {id: user.id},
+      where: { id: user.id },
       data: {
         password: hashedPassword,
         resetPin: null,

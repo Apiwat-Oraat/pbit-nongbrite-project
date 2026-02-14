@@ -5,8 +5,8 @@ import { autoFormatDates, formatToThai } from "../utils/dateFormatter.js";
 const AuthController = {
   login: async (req, res) => {
     try {
-      const { email, password } = req.body;
-      const data = await AuthService.login(email, password);
+      const { userrname, password } = req.body;
+      const data = await AuthService.login(userrname, password);
 
       // Access Token
       res.cookie('accessToken', data.accessToken, {
@@ -57,8 +57,8 @@ const AuthController = {
 
   async registerStep1(req, res) {
     try {
-      const { email, password, confirmPassword } = req.body;
-      const registerToken = await AuthService.registerStep1(email, password, confirmPassword);
+      const { username, email, password, confirmPassword } = req.body;
+      const registerToken = await AuthService.registerStep1(username, email, password, confirmPassword);
 
       // ส่ง registerToken ให้ frontend เอาไปใช้ใน step2
       res.cookie('registerToken', registerToken, {
