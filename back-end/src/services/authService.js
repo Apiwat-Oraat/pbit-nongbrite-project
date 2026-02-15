@@ -17,7 +17,7 @@ const AuthService = {
 
     const user = await prisma.user.findUnique({
       where: { username },
-      include: { profile: true, streaks: true },
+      include: { profile: true, streaks: true, userStats: true },
     });
 
     if (!user) throw new Error("User not found");
@@ -41,9 +41,9 @@ const AuthService = {
         profile: {
           playerName: user.profile.playerName,
           icon: user.profile.icon,
-          totalScore: user.profile.totalScore,
+          totalScore: user?.userStats?.totalScore || 0,
           currentRank: user.profile.currentRank,
-          totalStars: user.profile.totalStars
+          totalStars: user?.userStats?.totalStars || 0
         },
         streaks: {
           currentStreak: user.streaks.current,
@@ -106,8 +106,11 @@ const AuthService = {
         profile: {
           create: { playerName: name },
         },
+        userStats: {
+          create: { totalScore: 0, totalStars: 0 }
+        }
       },
-      include: { profile: true },
+      include: { profile: true, userStats: true },
     });
 
     return {

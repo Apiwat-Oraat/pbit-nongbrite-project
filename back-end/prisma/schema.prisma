@@ -32,6 +32,7 @@ model User {
   profile          Profile?
   rankingCache     RankingCache?
   streaks          Streak[]
+  userStats        UserStats?
   
 }
 
@@ -140,20 +141,29 @@ model GamePlayHistory {
 
 
 
+
 model Profile {
   id              Int      @id @default(autoincrement())
   userId          Int      @unique
   playerName      String?
   icon            String?
-  totalScore      Int      @default(0) // aggregate จาก LevelCompletion.bestScore
   currentRank     Int?
-  totalStars      Int      @default(0) // aggregate จาก LevelCompletion.bestStars
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
 
+model UserStats {
+  id          Int      @id @default(autoincrement())
+  userId      Int      @unique
+  totalScore  Int      @default(0)
+  totalStars  Int      @default(0)
+  updatedAt   DateTime @updatedAt
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
   @@index([totalScore(sort: Desc)])
+  @@index([totalStars(sort: Desc)])
 }
 
 model RankingCache {

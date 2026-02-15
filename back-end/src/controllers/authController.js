@@ -5,8 +5,8 @@ import { autoFormatDates, formatToThai } from "../utils/dateFormatter.js";
 const AuthController = {
   login: async (req, res) => {
     try {
-      const { userrname, password } = req.body;
-      const data = await AuthService.login(userrname, password);
+      const { username, password } = req.body;
+      const data = await AuthService.login(username, password);
 
       // Access Token
       res.cookie('accessToken', data.accessToken, {
@@ -25,9 +25,9 @@ const AuthController = {
       });
 
     } catch (error) {
-      res.status(401).json({ 
+      res.status(401).json({
         success: false,
-        message: error.message 
+        message: error.message
       });
     }
   },
@@ -171,14 +171,14 @@ const AuthController = {
     const { email, pin, newPassword } = req.body;
     try {
       await AuthService.resetPassword(email, pin, newPassword);
-      res.status(200).json({ 
+      res.status(200).json({
         success: true,
-        message: "Password reset successfully" 
+        message: "Password reset successfully"
       });
     } catch (err) {
-      res.status(400).json({ 
+      res.status(400).json({
         success: false,
-        message: err.message 
+        message: err.message
       });
     }
   }

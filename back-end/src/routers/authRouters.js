@@ -3,7 +3,7 @@ import { validateEmail, validatePassword, validateAge, validateGender, validateP
 
 
 const AuthRoutes = (router) => {
-  router.post("/auth/login", validateEmail, validatePassword, AuthController.login);
+  router.post("/auth/login", validatePassword, AuthController.login);
   router.post("/auth/logout", AuthController.logout);
   router.post("/auth/register/step1", validateEmail, validatePassword, AuthController.registerStep1);
   router.post("/auth/register/step2", validateAge, validateGender, AuthController.registerStep2);

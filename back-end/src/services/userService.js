@@ -14,6 +14,7 @@ const userService = {
       where: { id: userId },
       include: {
         profile: true,
+        userStats: true,
         rankingCache: {
           select: {
             rank: true
@@ -29,7 +30,7 @@ const userService = {
     // Sync currentRank จาก RankingCache (realtime)
     if (user.rankingCache && user.profile) {
       const cacheRank = user.rankingCache.rank;
-      
+
       // อัปเดต Profile.currentRank ถ้าไม่ตรงกับ RankingCache
       if (user.profile.currentRank !== cacheRank) {
         await prisma.profile.update({
@@ -41,13 +42,16 @@ const userService = {
     } else if (user.profile && !user.rankingCache) {
       // ถ้ายังไม่มี RankingCache ให้สร้างใหม่
       try {
+        const score = user.userStats?.totalScore || 0;
+        const stars = user.userStats?.totalStars || 0;
+
         const cacheResult = await RankingCacheService.updateUserCache(
-          userId, 
-          user.profile.totalScore,
-          user.profile.totalStars,
-          user.profile.updatedAt
+          userId,
+          score,
+          stars,
+          user.userStats?.updatedAt || user.profile.updatedAt
         );
-        
+
         // อัปเดต Profile.currentRank
         await prisma.profile.update({
           where: { userId },
@@ -58,6 +62,15 @@ const userService = {
         console.error('Failed to sync ranking:', err);
         // ไม่ throw error เพื่อไม่ให้กระทบการดึง profile
       }
+    }
+
+    // Map UserStats to Profile for frontend compatibility
+    if (user.profile && user.userStats) {
+      user.profile.totalScore = user.userStats.totalScore;
+      user.profile.totalStars = user.userStats.totalStars;
+    } else if (user.profile) {
+      user.profile.totalScore = 0;
+      user.profile.totalStars = 0;
     }
 
     return user;
@@ -112,7 +125,7 @@ const userService = {
 
     return updatedUser;
   }
-  
+
 }
 
 

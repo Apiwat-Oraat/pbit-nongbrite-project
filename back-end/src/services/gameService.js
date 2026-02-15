@@ -120,8 +120,8 @@ const GameService = {
 
     const newRankInfo = calculateRank(totalScore);
 
-    // ดึงข้อมูลเก่าก่อนอัปเดต (เพื่อ update cache)
-    const oldProfile = await prisma.profile.findUnique({
+    // ดึงข้อมูลเก่าก่อนอัปเดต (เพื่อ update cache)จาก UserStats
+    const oldUserStats = await prisma.userStats.findUnique({
       where: { userId: userId },
       select: {
         totalScore: true,
@@ -129,9 +129,17 @@ const GameService = {
         updatedAt: true
       }
     });
-    const oldScore = oldProfile?.totalScore || 0;
-    const oldTotalStars = oldProfile?.totalStars || 0;
-    const oldUpdatedAt = oldProfile?.updatedAt || new Date();
+
+    // ถ้ายังไม่มี UserStats (User เก่า) ให้สร้างใหม่
+    if (!oldUserStats) {
+      await prisma.userStats.create({
+        data: { userId, totalScore: 0, totalStars: 0 }
+      });
+    }
+
+    const oldScore = oldUserStats?.totalScore || 0;
+    const oldTotalStars = oldUserStats?.totalStars || 0;
+    const oldUpdatedAt = oldUserStats?.updatedAt || new Date();
 
     // ใช้ rank จาก RankingCache แทนการคำนวณใหม่
     // ส่ง totalStars และ updatedAt เก่าไปด้วย (ก่อนอัปเดต) เพื่อคำนวณ rank ที่ถูกต้อง
@@ -144,7 +152,7 @@ const GameService = {
       } catch (err) {
         console.error('Failed to update ranking cache:', err);
         // Fallback: คำนวณ rank เองถ้า cache fail
-        rankingPosition = await prisma.profile.count({
+        rankingPosition = await prisma.userStats.count({
           where: {
             totalScore: { gt: totalScore }
           }
@@ -167,7 +175,7 @@ const GameService = {
         } catch (err) {
           console.error('Failed to create ranking cache:', err);
           // Fallback: คำนวณ rank เองถ้า cache fail
-          rankingPosition = await prisma.profile.count({
+          rankingPosition = await prisma.userStats.count({
             where: {
               totalScore: { gt: totalScore }
             }
@@ -176,19 +184,28 @@ const GameService = {
       }
     }
 
-    await prisma.profile.upsert({
+    // อัปเดต UserStats (Score & Stars)
+    await prisma.userStats.upsert({
       where: { userId: userId },
       update: {
         totalScore: totalScore,
         totalStars: totalStars,
-        currentRank: rankingPosition,
         updatedAt: new Date()
       },
       create: {
         userId: userId,
         totalScore: totalScore,
         totalStars: totalStars,
+      }
+    });
+
+    // อัปเดต Profile (Current Rank)
+    // Profile should exist from registration
+    await prisma.profile.update({
+      where: { userId: userId },
+      data: {
         currentRank: rankingPosition,
+        updatedAt: new Date()
       }
     });
 
@@ -218,9 +235,9 @@ const GameService = {
       try {
         const cachedLeaderboard = await RankingCacheService.getLeaderboardFromCache(10);
 
-        // ดึง totalStars จาก Profile (เพราะ RankingCache ไม่มี)
+        // ดึง totalStars จาก UserStats (เพราะ RankingCache ไม่มี)
         const userIds = cachedLeaderboard.map(p => p.userId);
-        const profiles = await prisma.profile.findMany({
+        const allUserStats = await prisma.userStats.findMany({
           where: { userId: { in: userIds } },
           select: {
             userId: true,
@@ -228,10 +245,10 @@ const GameService = {
           }
         });
 
-        const profileMap = new Map(profiles.map(p => [p.userId, p]));
+        const statsMap = new Map(allUserStats.map(s => [s.userId, s]));
 
         return cachedLeaderboard.map((player) => {
-          const profile = profileMap.get(player.userId);
+          const stats = statsMap.get(player.userId);
           const rankInfo = calculateRank(player.totalScore);
 
           return {
@@ -241,7 +258,7 @@ const GameService = {
             avatar: player.avatar,
 
             totalScore: player.totalScore,
-            totalStars: profile?.totalStars || 0,
+            totalStars: stats?.totalStars || 0,
 
             tier: rankInfo.name,
             tierLabel: rankInfo.label,
@@ -255,8 +272,8 @@ const GameService = {
       }
     }
 
-    // Fallback: Query จาก Profile โดยตรง (ใช้เมื่อ cache ไม่พร้อม)
-    const leaderboard = await prisma.profile.findMany({
+    // Fallback: Query จาก UserStats + Profile (ใช้เมื่อ cache ไม่พร้อม)
+    const leaderboardStats = await prisma.userStats.findMany({
       take: 10,
       orderBy: [
         { totalScore: 'desc' },
@@ -265,25 +282,23 @@ const GameService = {
       ],
       include: {
         user: {
-          select: {
-            id: true,
-            name: true,
-          }
+          include: { profile: true }
         }
       }
     });
 
-    return leaderboard.map((player, index) => {
-      const rankInfo = calculateRank(player.totalScore);
+    return leaderboardStats.map((stats, index) => {
+      const rankInfo = calculateRank(stats.totalScore);
+      const profile = stats.user.profile;
 
       return {
         rank: index + 1,
-        userId: player.userId,
-        name: player.playerName || player.user.name || "Unknown Hero",
-        icon: player.icon,
+        userId: stats.userId,
+        name: profile?.playerName || stats.user.name || "Unknown Hero",
+        icon: profile?.icon,
 
-        totalScore: player.totalScore,
-        totalStars: player.totalStars,
+        totalScore: stats.totalScore,
+        totalStars: stats.totalStars,
 
         tier: rankInfo.name,
         tierLabel: rankInfo.label,
